@@ -15,7 +15,8 @@ class Style { setProperty(k, v) { this[k] = v; } }
 class Node {
   constructor(tag) {
     this.tagName = tag; this.children = []; this.parent = null; this.text = ""; this.className = "";
-    this.style = new Style(); this.dataset = {}; this.attrs = {}; this.hidden = false; this.on = {};
+    this.style = new Style(); this.dataset = {}; this.attrs = {}; this.hidden = false; this.on = {}; this.how = new Map();
+    this.scrollTop = 0;
     this.classList = {
       add: (c) => { if (!this.classList.contains(c)) this.className += " " + c; },
       remove: (c) => {
@@ -32,7 +33,8 @@ class Node {
   remove() { if (this.parent) this.parent.children = this.parent.children.filter((c) => c !== this); this.parent = null; }
   get isConnected() { let n = this; while (n.parent) n = n.parent; return n.tagName === "#document"; }
   setAttribute(k, v) { this.attrs[k] = v; }
-  addEventListener(t, f) { (this.on[t] = this.on[t] || []).push(f); }
+  /** how: each listener's options, e.g. { passive: true }. */
+  addEventListener(t, f, o) { (this.on[t] = this.on[t] || []).push(f); if (o) this.how.set(f, o); }
   removeEventListener(t, f) { this.on[t] = (this.on[t] || []).filter((g) => g !== f); }
   /** Fire event type t's listeners, as the page would. */
   fire(t) { (this.on[t] || []).forEach((f) => f({ type: t, target: this })); }
@@ -54,6 +56,9 @@ class Node {
   /** 400 x 300, or the size its page's layout gives it (see page's opts.screen). */
   get clientWidth() { return (this.size && this.size(this) || [400])[0]; }
   get clientHeight() { return (this.size && this.size(this) || [0, 300])[1]; }
+  /** Its content's height: its clientHeight (nothing to scroll) unless a test sets one. */
+  get scrollHeight() { return this.tall != null ? this.tall : this.clientHeight; }
+  set scrollHeight(v) { this.tall = v; }
   all(pred, out = []) { if (pred(this)) out.push(this); this.children.forEach((c) => c.all(pred, out)); return out; }
 }
 
@@ -64,7 +69,9 @@ class Node {
  *  or sideways, with the shop open or folded (viewSize); win.turn(w, h) changes it and fires the window's resize.
  *  Without it every view is a fixed 400 x 300 and the page is sideways, so a fold never zooms the map.
  *  Animation frames wait in win.frames ({id: callback}) until win.tick(ms) runs them, as at time ms;
- *  document.hidden is the page's visibility (fire "visibilitychange" on the document after changing it). */
+ *  document.hidden is the page's visibility (fire "visibilitychange" on the document after changing it).
+ *  Timeouts wait in win.timers ({id: {f, at}}) until win.wait(ms) moves the page's timer clock (win.clock) on by
+ *  ms and runs those due by then, in order. */
 function page(stored, opts = {}) {
   const doc = new Node("#document");
   const html = new Node("html"), head = new Node("head"), body = new Node("body");
@@ -88,7 +95,22 @@ function page(stored, opts = {}) {
     cancelAnimationFrame(id) { delete win.frames[id]; },
     tick(ms) { const fs = Object.values(win.frames); win.frames = {}; fs.forEach((f) => f(ms)); },
     MutationObserver: class { observe() {} disconnect() {} },
-    setTimeout() {},
+    timers: {}, nextTimer: 1, clock: 0,
+    setTimeout(f, ms) { win.timers[win.nextTimer] = { f, at: win.clock + (ms || 0) }; return win.nextTimer++; },
+    clearTimeout(id) { delete win.timers[id]; },
+    wait(ms) {
+      const end = win.clock + ms;
+      for (;;) {
+        const due = Object.keys(win.timers).filter((id) => win.timers[id].at <= end)
+          .sort((a, b) => win.timers[a].at - win.timers[b].at || a - b)[0];
+        if (due == null) break;
+        const t = win.timers[due];
+        delete win.timers[due];
+        win.clock = t.at;
+        t.f();
+      }
+      win.clock = end;
+    },
     matchMedia: (q) => ({ matches: q === SIDEWAYS ? sideways(win.screen) : !!opts.reduceMotion && q === "(prefers-reduced-motion: reduce)" }),
   };
   const make = doc.createElement;

@@ -394,6 +394,39 @@
   }
   /** An item's picture, at most `size` px a side. */
   function thumb(item, size) { return sprite(item.pic, Math.min(1, size / Math.max(item.pic.w, item.pic.h))); }
+  // A thin scrollbar: a 4 px thumb, BAR_END px in from the ends of its track, at least BAR_MIN px long, that fades
+  // out BAR_REST ms after the last scroll
+  var BAR_END = 3, BAR_MIN = 24, BAR_REST = 1000;
+  /** Put scroller n in a box (a .kg-scroll div with class cls, which takes n's place in the layout) with a thin
+   *  thumb over n's right edge, in place of its native bar, which the CSS hides: the page's own ::-webkit-scrollbar
+   *  styles (AnkiDroid's study screen has a 12 px grey one) would show through a scrollbar-width alone. The thumb
+   *  sits in the box, not in n, so it stays put while n's content scrolls, and taps go through it. On each scroll it
+   *  is sized and placed from n's scrollTop, scrollHeight and clientHeight and shown, and BAR_REST ms after the last
+   *  one it fades out; with nothing to scroll it stays hidden. Returns {box, stop}: stop() removes its listener and
+   *  timer (the garden closing). */
+  function scrollBar(n, cls) {
+    var box = el("div", "kg-scroll " + cls), bar = el("div", "kg-bar"), timer = 0;
+    box.append(n, bar);
+    function show() {
+      var h = n.clientHeight, all = n.scrollHeight;
+      if (all <= h) { hide(); return; }
+      var track = h - 2 * BAR_END, len = Math.min(track, Math.max(BAR_MIN, track * h / all));
+      // the share scrolled, kept to 0..1 for an overscroll's bounce
+      var at = Math.max(0, Math.min(1, n.scrollTop / (all - h)));
+      bar.style.height = len + "px";
+      bar.style.transform = "translateY(" + at * (track - len) + "px)";
+      bar.classList.add("kg-bar-on");
+      clearTimeout(timer);
+      timer = setTimeout(hide, BAR_REST);
+    }
+    function hide() {
+      clearTimeout(timer);
+      timer = 0;
+      bar.classList.remove("kg-bar-on");
+    }
+    n.addEventListener("scroll", show, { passive: true });
+    return { box: box, stop: function () { n.removeEventListener("scroll", show); hide(); } };
+  }
   /** A spot for an item's anchor that keeps its picture on the map. */
   function onMap(item, x, y) {
     var f = item.pic;
@@ -501,7 +534,9 @@
       devSet.append(el("span", "kg-devset-h", "テスト"), devBtn, fillBtn, dayBack, dayLabel, dayOn);
       panel.append(devSet);
     }
-    menu.append(panel);
+    // the panel and the shop's grid each scroll with a thin thumb (scrollBar)
+    var bars = [scrollBar(panel, "kg-panel-box")];
+    menu.append(bars[0].box);
 
     // map
     var view = el("div", "kg-view");
@@ -537,7 +572,8 @@
     // the fold button: outside the tabs, which renderTabs rebuilds, so it stays put while they scroll
     var foldBtn = el("button", "kg-btn kg-fold");
     foldBtn.type = "button";
-    shop.append(tabs, foldBtn, grid, ui.confirm);
+    bars.push(scrollBar(grid, "kg-grid-box"));
+    shop.append(tabs, foldBtn, bars[1].box, ui.confirm);
 
     root.append(top, view, shop, menu);
     document.body.append(root);
@@ -1216,6 +1252,7 @@
       watch.disconnect();
       window.removeEventListener("resize", relayout);
       document.removeEventListener("visibilitychange", flight);
+      bars.forEach(function (b) { b.stop(); });
       bugsOn = false;
       flutter(false);         // stops their loop
       root.remove();
@@ -1313,12 +1350,22 @@
     "%3Crect x='10' y='1' width='4' height='22' rx='1' transform='rotate(90 12 12)'/%3E",
     "%3Crect x='10' y='1' width='4' height='22' rx='1' transform='rotate(135 12 12)'/%3E",
     "%3Ccircle cx='12' cy='12' r='7.5'/%3E%3Ccircle cx='12' cy='12' r='3' fill='%23f4e6c4'/%3E%3C/svg%3E\") center/contain no-repeat}",
+    // a scroller in its box, with a thin thumb (scrollBar) for its native bar, which each scroller's own rules hide
+    // (scrollbar-width, and ::-webkit-scrollbar where the page styles that). The thumb shows at once and fades out
+    ".kg-scroll{position:relative;display:flex;flex-direction:column;min-height:0}",
+    ".kg-bar{position:absolute;top:3px;right:3px;width:4px;border-radius:2px;background:var(--kg-wood);opacity:0;",
+    "pointer-events:none;transition:opacity .3s}",
+    ".kg-bar-on{opacity:.5;transition:none}",
+    ".kg-panel-box>.kg-bar{top:6px;right:6px}",     // inside the panel's 3 px border
     // the settings: the garden dimmed, and a panel under the gear; the vacation question goes over it (kg-over)
     ".kg-menu{position:absolute;inset:0;z-index:6;display:flex;align-items:flex-start;justify-content:flex-end;",
     "padding:56px 8px 8px;background:rgba(20,30,15,.45)}",
-    ".kg-panel{box-sizing:border-box;display:flex;flex-direction:column;gap:8px;width:min(100%,360px);max-height:100%;",
-    "overflow-y:auto;overscroll-behavior:contain;padding:8px 10px 10px;background:var(--kg-paper);",
-    "border:3px solid var(--kg-wood-dark);border-radius:8px;box-shadow:0 4px 0 var(--kg-wood-dark)}",
+    // the panel's box (scrollBar) takes its width and height; the panel shrinks to it and scrolls
+    ".kg-panel-box{width:min(100%,360px);max-height:100%}",
+    ".kg-panel{box-sizing:border-box;display:flex;flex-direction:column;gap:8px;overflow-y:auto;overscroll-behavior:contain;",
+    "padding:8px 10px 10px;background:var(--kg-paper);border:3px solid var(--kg-wood-dark);border-radius:8px;",
+    "box-shadow:0 4px 0 var(--kg-wood-dark);scrollbar-width:none}",
+    ".kg-panel::-webkit-scrollbar{display:none}",
     ".kg-panel-h{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:17px}",
     ".kg-prefs{display:flex;flex-direction:column;gap:8px}",
     ".kg-prefs:empty{display:none}",
@@ -1386,8 +1433,10 @@
     ".kg-tab[aria-selected=true]{background:var(--kg-paper)}",
     ".kg-badge{display:inline-block;min-width:1.4em;margin-left:4px;padding:0 4px;border-radius:9px;",
     "background:var(--kg-leaf);color:#fff;font-size:12px;text-align:center}",
+    ".kg-grid-box{flex:1}",
     ".kg-grid{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px;padding:10px;",
-    "align-content:start;overscroll-behavior:contain}",
+    "align-content:start;overscroll-behavior:contain;scrollbar-width:none}",
+    ".kg-grid::-webkit-scrollbar{display:none}",
     ".kg-card{color:var(--kg-ink);display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 4px;background:#fffaf0;",
     "border:2px solid var(--kg-paper-2);border-radius:6px;cursor:pointer;min-width:0}",
     ".kg-card:active{border-color:var(--kg-wood)}",
@@ -1404,7 +1453,7 @@
     // above it. The fold button sits at the row's right end, over its padding
     ".kg-btn.kg-fold{position:absolute;top:5px;right:6px;z-index:4;width:40px;min-height:32px;padding:0;font-size:15px;line-height:1}",
     ".kg-shop-min .kg-shop{height:auto}",
-    ".kg-shop-min .kg-grid{display:none}",
+    ".kg-shop-min .kg-grid-box{display:none}",
     ".kg-shop-min .kg-tabs{padding-bottom:6px}",
     ".kg-shop-min .kg-tab{border-bottom:2px solid var(--kg-wood-dark);border-radius:6px}",
     ".kg-shop-min .kg-tab[aria-selected=true]{background:var(--kg-paper-2)}",
@@ -1424,7 +1473,7 @@
     ".kg-shop-min .kg-badge{margin:4px 0 0;padding:3px 0;text-combine-upright:all}",    // the count upright, below the name
     ".kg-shop-min .kg-confirm{position:fixed;left:8px;right:62px;bottom:8px}",
     ".kg-shop-min .kg-btn.kg-fold{right:7px}}",
-    "@media (prefers-reduced-motion:reduce){.kg-plus,.kg-pop,.kg-toast,.kg-sway{animation:none}.kg-plus{opacity:0}.kg-bug{display:none}.kg-switch::after{transition:none}}"
+    "@media (prefers-reduced-motion:reduce){.kg-plus,.kg-pop,.kg-toast,.kg-sway{animation:none}.kg-plus{opacity:0}.kg-bug{display:none}.kg-switch::after,.kg-bar{transition:none}}"
   ].join("");
 
   window.KanpekiGarden = { mount: mount, load: load, save: save, earn: earn, life: lifeOf, swayOf: swayOf,
