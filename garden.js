@@ -1005,6 +1005,7 @@
       folded = on;
       showFold();
       refit();
+      bars.forEach(function (b) { b.fit(); });
       if (!on) { if (filled) wholeMap(); filled = false; }
       else if (!sideways && wholeShown()) fillHeight();
     }

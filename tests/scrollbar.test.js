@@ -1,5 +1,6 @@
-// The shop's grid, its folded sideways tab strip and the settings panel scroll with a thin thumb that shows while they scroll and fades out a
-// second after, in place of their native bars, which the CSS hides (also where the page styles ::-webkit-scrollbar).
+// The shop's grid, its folded sideways tab strip and the settings panel scroll with a thin thumb that shows while they
+// scroll and fades out a second after, in place of their native bars, which the CSS hides (also where the page styles
+// ::-webkit-scrollbar).
 // Run: node --test tests/*.test.js
 "use strict";
 const test = require("node:test");
@@ -40,7 +41,8 @@ test("the CSS: the grid and the panel hide their native bars; the thumb is thin,
   assert.strictEqual(rule(".kg-shop-min .kg-grid-box"), "display:none");
   // the tab row's box keeps its height; folded sideways it's the strip, and the tabs fill it and scroll in it
   assert.strictEqual(rule(".kg-tabs-box"), "flex:none");
-  const media = "@media (orientation:landscape) and (max-height:500px){", side = css.slice(css.indexOf(media) + media.length);
+  const media = "@media (orientation:landscape) and (max-height:500px){";
+  const side = css.slice(css.indexOf(media) + media.length);
   assert.match(side, /(^|\})\.kg-shop-min \.kg-tabs-box\{flex:1\}/);
   const strip = /(^|\})\.kg-shop-min \.kg-tabs\{([^}]*)\}/.exec(side)[2];
   assert.match(strip, /(^|;)flex:1;min-height:0;/);
@@ -154,8 +156,15 @@ test("folded sideways, the tab strip scrolls with the thumb; the open tab row, s
   assert.strictEqual(bar.style.height, String(194 * 200 / 538) + "px");
   win.wait(1000);
   assert.ok(!on(bar));
+  // back to the top and opened within the second: the open row only overflows sideways, so the thumb goes at once
+  scroll(tabs, 0, 538);
+  assert.ok(on(bar));
+  tabs.scrollHeight = 200;
   byClass(root, "kg-fold")[0].click();
-  scroll(tabs, 0, 200);        // open, the row only overflows sideways
+  assert.ok(!root.classList.contains("kg-shop-min"));
+  assert.ok(!on(bar));
+  assert.deepStrictEqual(win.timers, {});
+  scroll(tabs, 0, 200);
   assert.ok(!on(bar));
 });
 
