@@ -66,11 +66,11 @@ test("closing the garden closes the panel, and the next garden opens without it"
   assert.ok(!shown(menu(root)));
 });
 
-test("in the panel: the sway switch, the butterflies switch, then the vacation switch", () => {
+test("in the panel: the sway switch, the butterflies switch, the vacation switch, then the version", () => {
   const root = openGarden(page(stored2({}), { now: NOW }));
   const panel = openSettings(root);
   assert.deepStrictEqual(panel.children.map((n) => n.className.split(" ").pop()),
-    ["kg-panel-h", "kg-prefs", "kg-note", "kg-vac"]);
+    ["kg-panel-h", "kg-prefs", "kg-note", "kg-vac", "kg-ver"]);
   assert.strictEqual(byClass(panel, "kg-prefs")[0].children.length, 2);
   assert.ok(!shown(byClass(panel, "kg-note")[0]));
   assert.deepStrictEqual(byClass(panel, "kg-opt").map((n) => n.textContent), ["くさばなが ゆれる", "ちょうちょが とぶ", "おやすみ"]);

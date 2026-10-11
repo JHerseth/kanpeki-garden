@@ -12,9 +12,11 @@
     catalog.js                   KG_CATALOG: per item its shop data and frames (format in the file),
                                         KG_REMOVED: {key: [name, price]} for items taken out of the shop
     art/removed/<key>.png        the crops of those items, kept as a backup
-    media/_garden.js             catalog.js + garden.js, the file the card templates load
+    media/_garden.js             catalog.js + KG_VERSION + garden.js, the file the card templates load
 
     python scripts/build_assets.py --js   # only rebuild _garden.js after editing garden.js
+
+Either build's _garden.js says KG_VERSION = "dev"; scripts/release.py stamps a release's version in (VERSION_DEV).
 
 Sprites are the opaque regions of the sheet. Where two touch (a hanging pot's string reaching
 the flower above, a tree's shadow), they are split along the sheet's rows or the CUTS below.
@@ -457,14 +459,23 @@ def pack(sizes, side, pad=2):
     return pos, atlases
 
 
-def bundle():
-    parts = [open(os.path.join(OUT, f), encoding="utf-8").read() for f in ("catalog.js", "garden.js")]
-    path = os.path.join(MEDIA, "_garden.js")
+# The bundle's version line, between catalog.js and garden.js; scripts/release.py replaces it with a release's
+VERSION_DEV = '// KG_VERSION: the release this file was built for, or "dev" for a local build\nvar KG_VERSION = "dev";\n'
+
+
+def bundle_js():
+    """_garden.js's text: catalog.js, VERSION_DEV and garden.js, in ASCII."""
+    catalog, garden = (open(os.path.join(OUT, f), encoding="utf-8").read() for f in ("catalog.js", "garden.js"))
+    js = "\n".join([catalog, VERSION_DEV, garden])
     # ASCII only (Japanese as \u escapes): servers may send the file without a charset
-    js = "\n".join(parts)
-    js = "".join(c if ord(c) < 128 else "\\u%04x" % ord(c) for c in js)
+    return "".join(c if ord(c) < 128 else "\\u%04x" % ord(c) for c in js)
+
+
+def bundle():
+    path = os.path.join(MEDIA, "_garden.js")
+    os.makedirs(MEDIA, exist_ok=True)
     with open(path, "w", encoding="ascii") as f:
-        f.write(js)
+        f.write(bundle_js())
     print(f"wrote {path}")
 
 

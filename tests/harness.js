@@ -65,6 +65,7 @@ class Node {
 /** A fresh page with the garden script loaded on it; `stored` is the localStorage map, kept between pages.
  *  opts.now: the time (ms) KG_CLOCK gives; opts.edit(win): runs between catalog.js and garden.js;
  *  opts.reduceMotion: the phone asks for prefers-reduced-motion; opts.src(code): changes garden.js first.
+ *  opts.bundle: a built _garden.js to run in place of catalog.js + garden.js (opts.edit and opts.src then do nothing).
  *  opts.screen [w, h]: a phone's screen, whose map view (.kg-view) is the size the garden's CSS gives it, upright
  *  or sideways, with the shop open or folded (viewSize); win.turn(w, h) changes it and fires the window's resize.
  *  Without it every view is a fixed 400 x 300 and the page is sideways, so a fold never zooms the map.
@@ -118,6 +119,10 @@ function page(stored, opts = {}) {
   win.window = win;
   if (opts.now != null) win.KG_CLOCK = () => opts.now;
   vm.createContext(win);
+  if (opts.bundle) {
+    vm.runInContext(opts.bundle, win);
+    return win;
+  }
   vm.runInContext(CATALOG, win);
   if (opts.edit) opts.edit(win);
   vm.runInContext(opts.src ? opts.src(GARDEN) : GARDEN, win);

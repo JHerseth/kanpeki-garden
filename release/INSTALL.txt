@@ -1,0 +1,31 @@
+Kanpeki Garden: setup
+=====================
+
+A small garden game on the back of your Anki cards. Each card answered in AnkiDroid pays one coin a day;
+coins buy plants and decorations for a pixel-art garden.
+
+1. Copy the media files from this zip into the collection.media folder of your Anki profile on the
+   computer (the folder next to the profile's collection.anki2):
+     _garden.js
+     _garden_sprites1.webp (and any further _garden_sprites<n>.webp)
+     _garden_bg.webp
+   Their names start with "_", so Tools > Check Media counts them as used and never deletes them.
+
+2. Paste the contents of template-snippet.html at the end of the back template of each card type that
+   should pay coins (Browse > Cards... > Back Template).
+
+3. On the phone, in AnkiDroid: Settings > Advanced > turn on "localStorage in Study Screen".
+
+4. Sync, then study on the phone: a coin chip shows in the bottom-right corner on the back of each card. Tap it to open the garden.
+
+Good to know
+- The garden shows only in AnkiDroid's new study screen (AnkiDroid 2.23 or later), not in desktop Anki,
+  the previewer or the card browser.
+- The garden and its coins are saved on that phone only; they are not synced. Clearing AnkiDroid's app
+  data, or uninstalling it, deletes them.
+- Away for a while? Turn on おやすみ (vacation) in the garden's settings (the gear): plants then don't
+  grow, wilt or die, and cards pay no coins until it's turned off.
+- To update, replace the media files with the new zip's; the garden's save is kept.
+- The version is shown at the bottom of the garden's settings.
+
+Licence: MIT, see LICENSE.

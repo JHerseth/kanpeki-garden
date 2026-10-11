@@ -1,5 +1,7 @@
 # The built media (the files that go into Anki's media folder); rebuild with scripts/build_assets.py.
 /media/
+# Release zips; make one with scripts/release.py.
+/dist/
 # Pages built by art/tools/ (prompts, gallery, mockup); rebuild with the scripts there.
 /art/tools/out/
 # Python bytecode

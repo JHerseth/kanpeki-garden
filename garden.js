@@ -24,7 +24,8 @@
  * Plants can be moved but not put back in もちもの; decorations can.
  *
  * Settings: the gear in the garden's top bar opens a panel with this phone's motion preferences
- * (prefSwitch), the vacation switch and, on a dev slot, the test section.
+ * (prefSwitch), the vacation switch, on a dev slot the test section, and at the bottom the build's version
+ * (KG_VERSION), in small quiet text, to tell builds apart when someone reports a problem.
  *
  * Vacation (おやすみ): a switch in the garden's settings that the player turns on and off. While it's on the
  * garden is frozen: no growth, no wilting, no dying, and no coins, but a card answered then still uses
@@ -43,7 +44,8 @@
  * view's height, and opening goes back to the whole map. While the player places something the shop folds by
  * itself and opens again after (setPlacing).
  *
- * Built by scripts/build_assets.py, which puts KG_CATALOG / KG_ATLAS / KG_SCALE / KG_REMOVED in front of this file.
+ * Built by scripts/build_assets.py, which puts KG_CATALOG / KG_ATLAS / KG_SCALE / KG_REMOVED in front of this file,
+ * and KG_VERSION: "dev", or the release's version (e.g. "1.2.0") that scripts/release.py stamps in.
  */
 (function () {
   "use strict";
@@ -59,6 +61,8 @@
   var PREFS_KEY = "kanpekikun-garden-opts";
   // the sideways layout: the shop on the right, beside the map, instead of under it
   var SIDEWAYS = "(orientation:landscape) and (max-height:500px)";
+  // the build's version, shown at the bottom of the settings: "dev" unless a release stamped one in
+  var VERSION = typeof KG_VERSION === "string" && KG_VERSION ? KG_VERSION : "dev";
   var BASE = window.KG_BASE || "";          // media folder; Anki serves media next to the card
   var BG = BASE + "_garden_bg.webp";
   var WORLD_W = 2000, WORLD_H = 1116;
@@ -509,7 +513,7 @@
     top.append(title, purse, gear, close);
 
     // settings: a panel over the garden, from the gear. In order: this phone's motion preferences (prefSwitch),
-    // the vacation switch, and the test section on a dev slot
+    // the vacation switch, the test section on a dev slot, and the version
     var menu = el("div", "kg-menu");          // the dimmed garden around the panel; a tap on it closes the panel
     var panel = el("div", "kg-panel");
     panel.setAttribute("role", "dialog");
@@ -542,6 +546,7 @@
       devSet.append(el("span", "kg-devset-h", "テスト"), devBtn, fillBtn, dayBack, dayLabel, dayOn);
       panel.append(devSet);
     }
+    panel.append(el("p", "kg-ver", VERSION === "dev" ? VERSION : "v" + VERSION));
     // the panel, the shop's grid and its folded sideways tab strip each scroll with a thin thumb (scrollBar)
     var panelBar = scrollBar(panel, "kg-panel-box");
     menu.append(panelBar.box);
@@ -1382,6 +1387,7 @@
     ".kg-prefs{display:flex;flex-direction:column;gap:8px}",
     ".kg-prefs:empty{display:none}",
     ".kg-note{margin:-2px 2px 0;font-size:12px}",
+    ".kg-ver{margin:0 2px;font-size:11px;text-align:right;opacity:.5}",     // the version: small and quiet
     // a switch row: the knob goes right and the track turns green while it's on (night blue for vacation)
     ".kg-opt{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;min-height:44px;",
     "padding:6px 10px 6px 12px;color:var(--kg-ink);background:#fffaf0;border:2px solid var(--kg-paper-2);border-radius:6px;",
