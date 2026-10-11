@@ -292,6 +292,11 @@ test("the coins float up from the plant over the map, and go after 1.1 s", () =>
   assert.strictEqual(up[0].parent, byClass(g.root, "kg-view")[0], "at screen size, not in the world");
   assert.strictEqual(up[0].textContent, "+5");
   assert.strictEqual(byClass(up[0], "kg-coin").length, 1);
+  // from the top of the picture, over its middle: the fake 400 x 300 view shows the map at 0.2, 38.4 px down
+  const f = g.G.items.apple.frames[MATURE], S = g.win.KG_SCALE;
+  const near = (v, want) => Math.abs(parseFloat(v) - want) < 1e-9;
+  assert.ok(near(up[0].style.left, (220 + (f.w / 2 - f.ax) * S) * 0.2), up[0].style.left);
+  assert.ok(near(up[0].style.top, 38.4 + (700 - f.ay * S) * 0.2), up[0].style.top);
   g.win.wait(1099);
   assert.strictEqual(floats(g.root).length, 1);
   g.win.wait(1);
@@ -299,6 +304,33 @@ test("the coins float up from the plant over the map, and go after 1.1 s", () =>
   const css = g.win.document.getElementById("kg-style").textContent;
   assert.match(css, /\.kg-gain\{[^}]*animation:kg-up 1\.1s/);
   assert.match(css, /@media \(prefers-reduced-motion:reduce\)\{[^{}]*\.kg-gain[,{]/);
+});
+
+test("zoomed in with the picture's top out of the view, the coins float up inside it", () => {
+  const g = garden({ placed: [ripe(1, "pear_tree", { x: 1200, y: 650 })], next: 2 });
+  const zin = byClass(g.root, "kg-zbtn")[0];
+  for (let i = 0; i < 4; i++) zin.click();                                 // about the map's middle: its top is above the view
+  touch(g.root, 1);
+  const up = byClass(g.root, "kg-gain")[0];
+  assert.deepStrictEqual([up.style.left, up.style.top], [400 - 28 + "px", "52px"]);
+});
+
+test("a paid pick redraws the shop: prices the player can now pay lose their grey", () => {
+  const g = garden({ coins: 18, placed: [ripe(1, "apple")], next: 2 });
+  const rose = () => byClass(g.root, "kg-card").find((c) => byClass(c, "kg-name")[0].textContent === "ピンクのバラ");
+  assert.ok(rose().classList.contains("kg-poor"));                          // ¤20
+  touch(g.root, 1);
+  assert.strictEqual(saved(g.stored).coins, 23);
+  assert.ok(!rose().classList.contains("kg-poor"));
+});
+
+test("a garden left open past 04:00: a tap sees the plant's life then, so one that turned dying isn't picked", () => {
+  const g = garden({ placed: [ripe(1)], next: 2 }, { now: at(TUE, 23) });  // Monday missed: well, with a crop
+  assert.deepStrictEqual(glints(g.root), [1]);
+  g.win.KG_CLOCK = () => at(WED, 4);                                        // Tuesday missed too: dying
+  touch(g.root, 1);
+  assert.deepStrictEqual([saved(g.stored).coins, saved(g.stored).placed[0].h], [0, undefined]);
+  assert.deepStrictEqual([outlined(g.root), glints(g.root)], [[1], []]);    // selected, its glint gone
 });
 
 test("the day's cap: ¤50 at most; later picks clear the crop for ¤0, and the first says so in the hint, once a day", () => {
@@ -476,6 +508,19 @@ test("v1.2.0's script loads and saves a save with picked days, keeping them", { 
   assert.deepStrictEqual(glints(g.root), [1]);
 });
 
+test("an h later than tomorrow (picked with the clock ahead) becomes today; one a day ahead stays, not picked twice", () => {
+  const stored = stored3({ days: days(MON), next: 4, placed: [ripe(1, "tomato", { h: "2027-10-12" }),
+    ripe(2, "corn", { h: iso(WED) }), ripe(3, "carrot", { h: iso(TUE) })] });
+  const s = plain(page(stored, { now: at(MON) }).KanpekiGarden.load());
+  assert.deepStrictEqual(s.placed.map((p) => p.h), [iso(MON), iso(MON), iso(TUE)]);
+  assert.deepStrictEqual(saved(stored), s, "saved as loaded");
+  // picked Tuesday, the clock back to Monday (a flight west): no crop again until a growth day after Tuesday
+  assert.deepStrictEqual([1, 2, 3].map((id) => crop(stored, at(MON, 11), id)), [false, false, false]);
+  assert.deepStrictEqual([1, 2, 3].map((id) => crop(stored, at(TUE, 4), id)), [true, true, false]);
+  review(stored, at(TUE, 9));
+  assert.strictEqual(crop(stored, at(WED, 4), 3), true);
+});
+
 test("a damaged h is dropped, as if never picked; a damaged picked is dropped, so nothing counts as picked today", () => {
   for (const h of ["x", 5, null, {}, [], "2026-1-2", true]) {
     const stored = stored3({ days: days(), placed: [ripe(1, "tomato", { h })], next: 2 });
@@ -485,7 +530,8 @@ test("a damaged h is dropped, as if never picked; a damaged picked is dropped, s
     assert.strictEqual(crop(stored, at(MON), 1), true, JSON.stringify(h));
   }
   for (const picked of [5, null, "x", [], {}, { day: "Monday", coins: 3 }, { day: iso(MON), coins: "3" },
-    { day: iso(MON), coins: -1 }, { day: iso(MON) }, { coins: 3 }, { day: iso(MON), coins: "INF" }]) {
+    { day: iso(MON), coins: -1 }, { day: iso(MON), coins: 49.5 }, { day: iso(MON) }, { coins: 3 },
+    { day: iso(MON), coins: "INF" }]) {
     const why = JSON.stringify(picked);
     const raw = JSON.stringify({ v: 3, coins: 0, earned: 0, seen: {}, inv: {}, placed: [ripe(1)], next: 2, days: days(), picked });
     const stored = { [KEY]: raw.replace('"INF"', "1e999") };

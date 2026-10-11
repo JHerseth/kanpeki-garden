@@ -307,7 +307,7 @@
    *     order bought; left out while there are none. Signs are never in inv: owning one is being in maps.
    *   at: the map the player was on last, where the garden opens; left out for home.
    *   picked {day, coins}: the crops picked on that day, as the coins they were worth together, paid or not (picking
-   *     pays PICK_CAP a day at most; see harvest). One from a day before today counts as none. Left out until the
+   *     pays PICK_CAP a day at most; see harvest). One from another day counts as none. Left out until the
    *     first pick.
    * Days are YYYY-MM-DD, starting at 04:00 (today()). v: 1 had no t, g, days or vac; v: 2 no maps, at or m, so it
    * moves over as it is, with everything on home. h and picked came after v: 3 without changing it: a v: 3 script
@@ -375,7 +375,9 @@
    *    dropped, the rest kept). A plant's g that isn't a whole number from 0 is dropped, so it's at stage 0: any
    *    other picks no frame and the map can't be drawn. A damaged t is enrol's to mend (it joins again today). An h
    *    that isn't a day is dropped, as if it had never been picked: a crop it may then have again is a few coins,
-   *    where a guess at the day could lose one.
+   *    where a guess at the day could lose one. An h later than tomorrow (picked while the phone's clock was ahead)
+   *    becomes today, as vacation never marks more than a day ahead: else the plant would have no crop until the
+   *    clock caught up, and a plant can't be put away. One day ahead (a flight west) stays, so it isn't picked twice.
    *  - ids and next: next goes past every id, and every placed item gets an id of its own. Without that, a missing
    *    next gives new items id NaN, stored as null, and the next opening's null++ counts from 0 into ids in use;
    *    two items with one id are taken away together (takeAway) though only one is paid for or put back. An item
@@ -385,15 +387,17 @@
    *  - coins and earned: finite numbers; anything else becomes its Number() if that's finite, else 0 (a string
    *    "500" would otherwise earn a coin as "5001").
    *  - refunded: {items: object, coins: finite number}, or left out; a damaged one is dropped, as showing it throws.
-   *  - picked: {day: a day, coins: a finite number from 0}, or left out; a damaged one is dropped, so nothing counts
-   *    as picked today (a coins of "12" would otherwise add up as a string, and one below 0 pay past the cap). */
+   *  - picked: {day: a day, coins: a whole number from 0}, or left out; a damaged one is dropped, so nothing counts
+   *    as picked today (a coins of "12" would otherwise add up as a string, one below 0 pay past the cap, and 49.5
+   *    pay half a coin). */
   function tidyFields(s) {
-    var changed = false;
+    var changed = false, day = today();
     if (!Array.isArray(s.placed)) { s.placed = []; changed = true; }
     else if (!s.placed.every(isObj)) { s.placed = s.placed.filter(isObj); changed = true; }
     s.placed.forEach(function (p) {
       if ("g" in p && !(Number.isInteger(p.g) && p.g >= 0)) { delete p.g; changed = true; }
       if ("h" in p && !isDay(p.h)) { delete p.h; changed = true; }
+      else if ("h" in p && dayNo(p.h) > dayNo(day) + 1) { p.h = day; changed = true; }
     });
     var top = 0, used = {};
     s.placed.forEach(function (p) { if (finite(p.id) && p.id > top) top = p.id; });
@@ -415,7 +419,8 @@
       delete s.refunded;
       changed = true;
     }
-    if ("picked" in s && !(isObj(s.picked) && isDay(s.picked.day) && finite(s.picked.coins) && s.picked.coins >= 0)) {
+    var picked = s.picked;
+    if ("picked" in s && !(isObj(picked) && isDay(picked.day) && Number.isInteger(picked.coins) && picked.coins >= 0)) {
       delete s.picked;
       changed = true;
     }
@@ -639,6 +644,9 @@
 
   // A selected sign's label: LABEL_GAP px above the signpost (room for its tail), and LABEL_EDGE px in from the view's sides
   var LABEL_GAP = 6, LABEL_EDGE = 4;
+  // A pick's floating coins: their spot at least GAIN_EDGE px in from the view's sides (half their width, and a little)
+  // and GAIN_TOP px down from its top (their line, and the 26 px they rise)
+  var GAIN_EDGE = 28, GAIN_TOP = 52;
 
   // Butterflies: one for every BUGS_PER living flowers, at most BUGS_MAX
   var BUGS_PER = 5, BUGS_MAX = 6;
@@ -1108,9 +1116,9 @@
     /** Show the glint of placed plant p, on its node d, while it has a crop (ripe), or take it away. The glint sits in
      *  a .kg-ripe box after the picture (f: the frame it shows), the picture's size and place and swaying with it
      *  (sw, swing), so it rides the sway and the map's zoom without the picture's shadow: centred over the picture,
-     *  just above its top. The box is the node's second child; more glints can go in it. */
+     *  just above its top. The box is the node's second child. */
     function showCrop(d, p, f, sw) {
-      var box = d.children[1] || null;
+      var box = d.children[1];
       if (!ripe(p)) { if (box) box.remove(); return; }
       if (!box) {
         box = el("div", "kg-ripe");
@@ -1423,13 +1431,16 @@
       showHint();
     }
     /** Float n coins up from placed plant p, from the top of its picture, as a card's coin floats up from its chip
-     *  (kg-up): at screen size over the map, whatever the zoom, and taken away once that's done (1.1 s). */
+     *  (kg-up): at screen size over the map, whatever the zoom, and taken away once that's done (1.1 s). Its spot is
+     *  kept GAIN_EDGE px in from the view's sides and GAIN_TOP px down from its top, so the coins stay in the view
+     *  when the picture's top is out of it. */
     function gain(p, n) {
       var f = stageFrame(ITEMS[p.k], life(p)), up = el("div", "kg-gain"), coins = el("span");
+      var x = cam.x + (p.x + (f.w / 2 - f.ax) * KG_SCALE) * cam.s, y = cam.y + (p.y - f.ay * KG_SCALE) * cam.s;
       coins.append.apply(coins, coined("¤+" + n));
       up.append(coins);
-      up.style.left = cam.x + (p.x + (f.w / 2 - f.ax) * KG_SCALE) * cam.s + "px";
-      up.style.top = cam.y + (p.y - f.ay * KG_SCALE) * cam.s + "px";
+      up.style.left = Math.max(GAIN_EDGE, Math.min(view.clientWidth - GAIN_EDGE, x)) + "px";
+      up.style.top = Math.max(GAIN_TOP, Math.min(view.clientHeight, y)) + "px";
       view.append(up);
       setTimeout(function () { up.remove(); }, 1100);
     }
@@ -1935,6 +1946,7 @@
       if (gesture.type === "pinch") { if (!count()) gesture = null; return; }
       if (gesture.type === "drag" && gesture.moved) persist();
       if (!gesture.moved && e.type === "pointerup") {
+        if (gesture.id != null) delete lives[gesture.id];   // its life now, if the garden stayed open past 04:00
         if (placing) place(placing, toWorld(e.clientX, e.clientY));
         else if (gesture.id != null && gesture.id === selected && selectedSign()) walk(signTo(selectedSign()));   // a second tap
         else if (gesture.id != null && ripe(find(gesture.id))) harvest(find(gesture.id));     // the next tap selects it
