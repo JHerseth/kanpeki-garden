@@ -1,0 +1,102 @@
+<title>Garden Stage Art</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@600&family=IBM+Plex+Sans:wght@400;500;600&family=Klee+One:wght@600&display=swap">
+<style>
+/* Layout: title, life-cycle legend and backdrop switch, then one row per plant grouped by shop tab; left-out items at the end. */
+:root {
+  --bg: #eef2ec; --surface: #ffffff; --ink: #1d281c; --muted: #5a6857; --line: #d3dbcf;
+  --accent: #356d27; --accent-ink: #ffffff; --grass: #6f9a48; --grass-2: #67913f; --night: #1b2117;
+  --display: "Pixelify Sans", "Courier New", monospace;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --jp: "Klee One", "Hiragino Maru Gothic ProN", "Noto Sans JP", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121811; --surface: #1a2219; --ink: #e2eadd; --muted: #9aa894; --line: #2c3829;
+  --accent: #8cc56e; --accent-ink: #10180e; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121811; --surface: #1a2219; --ink: #e2eadd; --muted: #9aa894; --line: #2c3829;
+  --accent: #8cc56e; --accent-ink: #10180e; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 32px 64px; display: grid; gap: 20px; }
+h1 { font: 600 clamp(28px, 4.5vw, 40px)/1.1 var(--display); margin: 0; text-wrap: balance; }
+h2 { font: 600 22px/1.2 var(--display); margin: 12px 0 0; display: flex; gap: 10px; align-items: baseline; }
+h2 span { font: 500 14px var(--body); color: var(--muted); }
+.lede { margin: 0; max-width: 72ch; }
+.bar { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; }
+.cycle { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; font: 500 13px/1 var(--body); }
+.cycle li { padding: 6px 10px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); }
+.cycle li + li::before { content: "→"; color: var(--muted); margin-right: 8px; }
+.switch { display: flex; gap: 6px; margin-left: auto; }
+.chip { font: 500 14px var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 13px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.list { display: grid; gap: 12px; }
+.row { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px; display: grid; gap: 8px; min-width: 0; }
+.head { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: baseline; }
+.name { font-weight: 600; }
+.jp { font: 600 14px var(--jp); color: var(--muted); }
+.file { font-size: 13px; color: var(--muted); }
+.tag { font: 600 11px/1 var(--body); letter-spacing: .04em; text-transform: uppercase; color: var(--accent); border: 1px solid var(--accent); border-radius: 4px; padding: 3px 5px; }
+.stage { overflow-x: auto; border-radius: 4px; background: var(--grass);
+  background-image: repeating-linear-gradient(45deg, var(--grass) 0 14px, var(--grass-2) 14px 28px); }
+body.dark-bg .stage { background: var(--night); }
+.stage img { display: block; height: 200px; width: auto; max-width: none; margin: 10px 12px; }
+.skips { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 250px), 1fr)); }
+.skip { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 10px; display: grid; gap: 8px; align-content: start; }
+.skip .pic { height: 220px; border-radius: 4px; display: grid; place-items: center;
+  background-image: repeating-linear-gradient(45deg, var(--grass) 0 14px, var(--grass-2) 14px 28px); }
+body.dark-bg .skip .pic { background: var(--night); }
+.skip img { width: auto; height: auto; max-width: 92%; max-height: 200px; image-rendering: pixelated; }
+.skip p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.note { margin: 0; color: var(--muted); max-width: 70ch; }
+</style>
+<div class="wrap">
+  <h1>Garden Stage Art</h1>
+  <p class="lede">All 61 new life-cycle strips, cut free of their backgrounds and shown at the same height. Each row is one shop plant, left to right through its five stages. The art is shown as drawn; in the game each plant is scaled to its own size.</p>
+  <p class="note"><a href="#left-out">Jump to the 11 items without stage art</a></p>
+  <div class="bar">
+    <ol class="cycle" aria-label="Life cycle"><li>Sprout</li><li>Young</li><li>Mature</li><li>Dying</li><li>Dead</li></ol>
+    <div class="switch" role="group" aria-label="Backdrop">
+      <button class="chip" type="button" id="bg-grass" aria-pressed="true">On grass</button>
+      <button class="chip" type="button" id="bg-dark" aria-pressed="false">On dark</button>
+    </div>
+  </div>
+  <div id="groups"></div>
+  <h2 id="style-check">Style check <span>40-plant sheet vs new strips</span></h2>
+  <p class="note">The 7 plants from the 40-plant sheet that aren't in the shop, plus its rose and tulip, above four of the new strips. All shown at about game height.</p>
+  <div class="stage" style="max-width:720px"><img src="img/style_check.webp" alt="Forget-me-not, marigold, primrose, chili, zucchini, cotton, grape vine, rose and tulip from the 40-plant sheet, then pink rose, yellow tulip, violet and buttercup from the new strips" style="height:auto;width:100%;margin:0"></div>
+  <h2 id="left-out">Left out <span>11 items, taken out of the shop</span></h2>
+  <p class="note">These have no stage art, so the shop no longer sells them; anyone who owned one was refunded.</p>
+  <div class="skips" id="skips"></div>
+</div>
+<script>
+const DATA = {"items": [{"key": "rose_pink", "name": "Pink rose", "jp": "ピンクのバラ", "group": "Flowers", "w": 707, "h": 200, "redo": false}, {"key": "tulip_yellow", "name": "Yellow tulip", "jp": "黄色いチューリップ", "group": "Flowers", "w": 682, "h": 200, "redo": false}, {"key": "marguerite", "name": "Marguerite", "jp": "マーガレット", "group": "Flowers", "w": 730, "h": 200, "redo": false}, {"key": "pansy", "name": "Blue pansy", "jp": "パンジー", "group": "Flowers", "w": 793, "h": 200, "redo": false}, {"key": "violet", "name": "Violet", "jp": "スミレ", "group": "Flowers", "w": 831, "h": 200, "redo": false}, {"key": "wildflower", "name": "Wildflowers", "jp": "のはらの花", "group": "Flowers", "w": 679, "h": 200, "redo": false}, {"key": "phlox", "name": "Phlox", "jp": "フロックス", "group": "Flowers", "w": 714, "h": 200, "redo": false}, {"key": "nemophila", "name": "Nemophila (baby blue eyes)", "jp": "ネモフィラ", "group": "Flowers", "w": 734, "h": 200, "redo": false}, {"key": "buttercup", "name": "Buttercup", "jp": "キンポウゲ", "group": "Flowers", "w": 714, "h": 200, "redo": false}, {"key": "viola", "name": "Viola", "jp": "ビオラ", "group": "Flowers", "w": 753, "h": 200, "redo": false}, {"key": "hydrangea", "name": "Hydrangea", "jp": "アジサイ", "group": "Flowers", "w": 703, "h": 200, "redo": false}, {"key": "lupine", "name": "Lupine", "jp": "ルピナス", "group": "Flowers", "w": 448, "h": 200, "redo": false}, {"key": "hibiscus", "name": "Hibiscus", "jp": "ハイビスカス", "group": "Flowers", "w": 711, "h": 200, "redo": false}, {"key": "clover4", "name": "Four-leaf clover", "jp": "よつばのクローバー", "group": "Flowers", "w": 650, "h": 200, "redo": false}, {"key": "fiddlehead", "name": "Fiddlehead fern (zenmai)", "jp": "ゼンマイ", "group": "Flowers", "w": 709, "h": 200, "redo": false}, {"key": "ivy_sprig", "name": "Ivy", "jp": "ツタ", "group": "Flowers", "w": 611, "h": 200, "redo": false}, {"key": "moss", "name": "Moss", "jp": "コケ", "group": "Flowers", "w": 1126, "h": 200, "redo": false}, {"key": "mushroom_orange", "name": "Orange toadstools", "jp": "キノコ", "group": "Flowers", "w": 638, "h": 200, "redo": false}, {"key": "berry_red", "name": "Red berry bush", "jp": "赤いみの木", "group": "Vegetables", "w": 717, "h": 200, "redo": false}, {"key": "blueberry", "name": "Blueberry bush", "jp": "ブルーベリー", "group": "Vegetables", "w": 743, "h": 200, "redo": false}, {"key": "lettuce", "name": "Lettuce", "jp": "レタス", "group": "Vegetables", "w": 936, "h": 200, "redo": false}, {"key": "napa", "name": "Napa cabbage (hakusai)", "jp": "はくさい", "group": "Vegetables", "w": 792, "h": 200, "redo": false}, {"key": "leafy_bush", "name": "Leafy bush", "jp": "はっぱのしげみ", "group": "Shrubs", "w": 772, "h": 200, "redo": false}, {"key": "shrub", "name": "Round shrub", "jp": "しげみ", "group": "Shrubs", "w": 822, "h": 200, "redo": false}, {"key": "rose_bush", "name": "Rose bush", "jp": "バラのしげみ", "group": "Shrubs", "w": 649, "h": 200, "redo": false}, {"key": "grass_tall", "name": "Tall grass", "jp": "くさむら", "group": "Shrubs", "w": 741, "h": 200, "redo": false}, {"key": "monstera", "name": "Monstera", "jp": "モンステラ", "group": "Shrubs", "w": 581, "h": 200, "redo": false}, {"key": "banana_leaf", "name": "Japanese banana (bashō)", "jp": "バショウ", "group": "Shrubs", "w": 609, "h": 200, "redo": false}, {"key": "bamboo", "name": "Bamboo", "jp": "たけ", "group": "Shrubs", "w": 625, "h": 200, "redo": false}, {"key": "topiary", "name": "Spiral topiary", "jp": "うずまきの木", "group": "Shrubs", "w": 407, "h": 200, "redo": false}, {"key": "cone_bush", "name": "Cone topiary", "jp": "さんかくの木", "group": "Shrubs", "w": 635, "h": 200, "redo": false}, {"key": "bamboo_log", "name": "Bamboo and log", "jp": "たけとまるた", "group": "Shrubs", "w": 510, "h": 200, "redo": true}, {"key": "fir", "name": "Fir tree", "jp": "モミの木", "group": "Trees", "w": 357, "h": 200, "redo": false}, {"key": "willow", "name": "Weeping willow", "jp": "ヤナギ", "group": "Trees", "w": 637, "h": 200, "redo": false}, {"key": "palm", "name": "Palm tree", "jp": "ヤシの木", "group": "Trees", "w": 403, "h": 200, "redo": false}, {"key": "birch", "name": "Birch", "jp": "シラカバ", "group": "Trees", "w": 359, "h": 200, "redo": false}, {"key": "apple", "name": "Apple tree", "jp": "りんごの木", "group": "Trees", "w": 477, "h": 200, "redo": true}, {"key": "sakura", "name": "Cherry blossom tree", "jp": "さくら", "group": "Trees", "w": 623, "h": 200, "redo": true}, {"key": "maple", "name": "Maple tree", "jp": "もみじ", "group": "Trees", "w": 568, "h": 200, "redo": true}, {"key": "pear_tree", "name": "Pear tree", "jp": "ナシの木", "group": "Trees", "w": 559, "h": 200, "redo": true}, {"key": "orange_tree", "name": "Orange tree", "jp": "オレンジの木", "group": "Trees", "w": 630, "h": 200, "redo": true}, {"key": "bonsai", "name": "Bonsai", "jp": "ぼんさい", "group": "Trees", "w": 535, "h": 200, "redo": false}, {"key": "cactus", "name": "Cactus", "jp": "サボテン", "group": "Potted", "w": 699, "h": 200, "redo": false}, {"key": "succulent", "name": "Succulent", "jp": "たにくしょくぶつ", "group": "Potted", "w": 748, "h": 200, "redo": false}, {"key": "jade", "name": "Jade plant", "jp": "カネノナルキ", "group": "Potted", "w": 491, "h": 200, "redo": false}, {"key": "snake_plant", "name": "Snake plant", "jp": "サンスベリア", "group": "Potted", "w": 548, "h": 200, "redo": false}, {"key": "pot_spiky", "name": "Spiky succulent", "jp": "とげとげのはち", "group": "Potted", "w": 663, "h": 200, "redo": false}, {"key": "pot_leafy", "name": "Leafy houseplant", "jp": "はちうえの木", "group": "Potted", "w": 682, "h": 200, "redo": false}, {"key": "pot_yellow", "name": "Yellow flowers in a pot", "jp": "黄色い花のはち", "group": "Potted", "w": 580, "h": 200, "redo": false}, {"key": "pot_fern", "name": "Potted fern", "jp": "シダのはち", "group": "Potted", "w": 717, "h": 200, "redo": false}, {"key": "pot_palm", "name": "Potted palm", "jp": "ヤシのはち", "group": "Potted", "w": 636, "h": 200, "redo": false}, {"key": "flytrap", "name": "Venus flytrap", "jp": "ハエトリソウ", "group": "Potted", "w": 655, "h": 200, "redo": false}, {"key": "flowerbox", "name": "Window box", "jp": "花のプランター", "group": "Potted", "w": 1343, "h": 200, "redo": false}, {"key": "planter_white", "name": "White planter", "jp": "白いプランター", "group": "Potted", "w": 933, "h": 200, "redo": false}, {"key": "flower_bowl", "name": "Flower bowl", "jp": "花のボウル", "group": "Potted", "w": 910, "h": 200, "redo": false}, {"key": "terrarium", "name": "Terrarium", "jp": "テラリウム", "group": "Potted", "w": 839, "h": 200, "redo": false}, {"key": "basket", "name": "Hanging flower basket", "jp": "花のつりかご", "group": "Potted", "w": 506, "h": 200, "redo": false}, {"key": "hang_ivy", "name": "Hanging ivy pot", "jp": "ツタのつりばち", "group": "Potted", "w": 469, "h": 200, "redo": false}, {"key": "hang_fern", "name": "Hanging fern", "jp": "シダのつりばち", "group": "Potted", "w": 551, "h": 200, "redo": false}, {"key": "hang_spider", "name": "Hanging spider plant", "jp": "オリヅルラン", "group": "Potted", "w": 522, "h": 200, "redo": false}, {"key": "ivy_hanging", "name": "Trailing ivy", "jp": "たれさがるツタ", "group": "Potted", "w": 493, "h": 200, "redo": false}], "skipped": [{"key": "tomato_ripe", "name": "Ripe caged tomato", "jp": "まっかなトマト", "why": "same plant as the tomato on the new sheet"}, {"key": "carrot_bed", "name": "Carrot bed", "jp": "ニンジンばたけ", "why": "same plant as the carrot on the new sheet"}, {"key": "radish_bed", "name": "Radish bed", "jp": "ラディッシュばたけ", "why": "same plant as the radish on the new sheet"}, {"key": "potato_bed", "name": "Potato bed", "jp": "ジャガイモばたけ", "why": "same plant as the potato on the new sheet"}, {"key": "potato_plant", "name": "Potato sprout", "jp": "ジャガイモのめ", "why": "it is a potato sprout; the potato's own stages cover it"}, {"key": "grass_tall2", "name": "Long grass", "jp": "ながいくさ", "why": "a second tall-grass clump; the tall grass prompt covers it"}, {"key": "monstera_small", "name": "Small monstera", "jp": "小さなモンステラ", "why": "a young monstera; the monstera's young stage covers it"}, {"key": "sprout_pot", "name": "Pot with a sprout", "jp": "めが出たはち", "why": "already a sprout, so it has no life cycle of its own"}, {"key": "sprout_pot2", "name": "Pot with seed leaves", "jp": "ふたばのはち", "why": "already a sprout, so it has no life cycle of its own"}, {"key": "seedling_box", "name": "Seedling box", "jp": "なえばこ", "why": "already seedlings, so it has no life cycle of its own"}, {"key": "seed_tray", "name": "Seed tray", "jp": "なえのトレー", "why": "already seedlings, so it has no life cycle of its own"}]};
+const GROUPS = [["Flowers","花"],["Vegetables","やさい"],["Shrubs","草木"],["Trees","木"],["Potted","はちうえ"]];
+function el(t, c, x) { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; }
+const root = document.getElementById("groups");
+GROUPS.forEach(([g, jp]) => {
+  const items = DATA.items.filter(i => i.group === g);
+  const h = el("h2", null, g + " "); h.append(el("span", null, jp + " · " + items.length)); root.append(h);
+  const list = el("div", "list");
+  items.forEach(i => {
+    const row = el("article", "row");
+    const head = el("div", "head");
+    head.append(el("span", "name", i.name), el("span", "jp", i.jp), el("span", "file", i.key + ".png"));
+    if (i.redo) head.append(el("span", "tag", "Redo"));
+    if (i.key === "apple") head.append(el("span", "tag", "New in shop"));
+    const st = el("div", "stage"); const img = new Image(); img.src = "img/" + i.key + ".webp"; img.alt = i.name + ": sprout, young, mature, dying and dead"; img.width = i.w; img.height = i.h; img.loading = "lazy"; st.append(img);
+    row.append(head, st); list.append(row);
+  });
+  root.append(list);
+});
+const sk = document.getElementById("skips");
+DATA.skipped.forEach(s => {
+  const c = el("div", "skip"); const p = el("div", "pic"); const img = new Image(); img.src = "img/skip_" + s.key + ".webp"; img.alt = s.name;
+  img.onload = () => { img.style.width = Math.min(img.naturalWidth, 230) + "px"; }; p.append(img);
+  const t = el("div"); t.append(el("div", "name", s.name), el("div", "jp", s.jp), el("p", null, s.why[0].toUpperCase() + s.why.slice(1) + "."));
+  c.append(p, t); sk.append(c);
+});
+const bG = document.getElementById("bg-grass"), bD = document.getElementById("bg-dark");
+function setBg(dark) { document.body.classList.toggle("dark-bg", dark); bG.setAttribute("aria-pressed", String(!dark)); bD.setAttribute("aria-pressed", String(dark)); try { localStorage.setItem("stage-bg", dark ? "dark" : "grass"); } catch (e) {} }
+bG.addEventListener("click", () => setBg(false)); bD.addEventListener("click", () => setBg(true));
+try { if (localStorage.getItem("stage-bg") === "dark") setBg(true); } catch (e) {}
+</script>

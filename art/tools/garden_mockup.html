@@ -1,0 +1,89 @@
+<title>Garden Stage Mockup</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a title and short note, view tabs, then one large picture of the garden; notes on what's where underneath. */
+:root {
+  --bg: #eef2ec; --surface: #ffffff; --ink: #1d281c; --muted: #5a6857; --line: #d3dbcf;
+  --accent: #356d27; --accent-ink: #ffffff; --frame: #24301f;
+  --display: "Pixelify Sans", "Courier New", monospace;
+  --body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121811; --surface: #1a2219; --ink: #e2eadd; --muted: #9aa894; --line: #2c3829;
+  --accent: #8cc56e; --accent-ink: #10180e; --frame: #0b0f0a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #121811; --surface: #1a2219; --ink: #e2eadd; --muted: #9aa894; --line: #2c3829;
+  --accent: #8cc56e; --accent-ink: #10180e; --frame: #0b0f0a; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 20px; padding-block: 32px 56px; display: grid; gap: 18px; }
+h1 { font: 600 clamp(28px, 4.5vw, 40px)/1.1 var(--display); margin: 0; text-wrap: balance; }
+.lede { margin: 0; max-width: 70ch; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tab { font: 500 14px var(--body); color: var(--ink); background: var(--surface); border: 1px solid var(--line);
+  border-radius: 999px; padding: 7px 14px; cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.tab:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.view { min-width: 0; }
+.pic { display: block; width: 100%; height: auto; border-radius: 6px; border: 1px solid var(--line); }
+.scroll { overflow-x: auto; border-radius: 6px; border: 1px solid var(--line); }
+.scroll img { display: block; max-width: none; width: 1200px; height: auto; }
+.phone { width: min(100%, 412px); margin: 0 auto; background: var(--frame); border-radius: 28px; padding: 54px 10px; }
+.phone img { display: block; width: 100%; height: auto; border-radius: 4px; }
+.cap { margin: 8px 0 0; color: var(--muted); font-size: 14px; max-width: 75ch; }
+.notes { display: grid; gap: 10px 28px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); margin: 6px 0 0; padding: 0; list-style: none; }
+.notes li { min-width: 0; padding-left: 14px; border-left: 3px solid var(--line); }
+.notes b { font-weight: 600; }
+</style>
+
+<div class="wrap">
+  <h1>Garden Stage Mockup</h1>
+  <p class="lede">The 22 new flower and vegetable strips and the 5 new trees, placed on the real garden background at the size the game would draw them. Each plant's mature frame is about 1.1 times the height of its current sprite; the mound of soil under every frame takes up part of that height. The apple tree is new, so it is sized like the pear tree. The gnome, lantern, watering can and birdbath are the current decorations, for comparison.</p>
+  <div class="tabs" role="tablist" aria-label="View">
+    <button class="tab" role="tab" id="t-mixed" aria-controls="v-mixed" aria-selected="true">Mixed stages</button>
+    <button class="tab" role="tab" id="t-mature" aria-controls="v-mature" aria-selected="false">All mature</button>
+    <button class="tab" role="tab" id="t-neg" aria-controls="v-neg" aria-selected="false">Neglected</button>
+    <button class="tab" role="tab" id="t-close" aria-controls="v-close" aria-selected="false">Beds, 1:1</button>
+    <button class="tab" role="tab" id="t-trees" aria-controls="v-trees" aria-selected="false">Trees, 1:1</button>
+    <button class="tab" role="tab" id="t-phone" aria-controls="v-phone" aria-selected="false">Phone, zoomed out</button>
+  </div>
+
+  <section class="view" id="v-mixed" role="tabpanel" aria-labelledby="t-mixed">
+    <img class="pic" src="mixed.webp" alt="Garden with plants at different stages: sprouts, young plants, mature flowers and a neglected bed of dying and dead plants">
+    <ul class="notes">
+      <li><b>Left beds:</b> lettuce and napa cabbage at sprout, young and mature.</li>
+      <li><b>Top two long beds:</b> flowers in full bloom.</li>
+      <li><b>Bottom long bed:</b> not reviewed for a while. Hydrangea and lupine are dying, the violet and pansy are dead.</li>
+      <li><b>Small beds:</b> two sprouts, a young and a mature tulip, a pansy.</li>
+      <li><b>Tall bed:</b> a mature blueberry bush above a young red berry bush in flower.</li>
+      <li><b>On the grass:</b> fiddleheads, ivy, moss, toadstools, a lupine, a hydrangea and a dying marguerite.</li>
+      <li><b>Trees:</b> a mature apple and cherry tree top right, a mature maple bottom left, a young pear tree with blossom, and an orange tree sprout by the path.</li>
+    </ul>
+  </section>
+  <section class="view" id="v-mature" role="tabpanel" aria-labelledby="t-mature" hidden>
+    <img class="pic" src="mature.webp" alt="The same garden with every plant in its mature stage">
+    <p class="cap">The same places, every plant mature.</p>
+  </section>
+  <section class="view" id="v-neg" role="tabpanel" aria-labelledby="t-neg" hidden>
+    <img class="pic" src="neglected.webp" alt="The same garden after days without reviews: plants and trees in autumn colours, some dead">
+    <p class="cap">The same places after days without reviews: most plants dying, every third one dead. A sprout or young plant that dies uses the plant's full-size dying and dead frames, by design.</p>
+  </section>
+  <section class="view" id="v-close" role="tabpanel" aria-labelledby="t-close" hidden>
+    <div class="scroll"><img src="closeup.webp" alt="Close-up of the vegetable and flower beds at full size"></div>
+    <p class="cap">The beds at full size, one image pixel per screen pixel. This is about what the player sees when zoomed in all the way.</p>
+  </section>
+  <section class="view" id="v-trees" role="tabpanel" aria-labelledby="t-trees" hidden>
+    <div class="scroll"><img src="trees_close.webp" alt="Close-up of the apple and cherry trees at full size" style="width:750px"></div>
+    <p class="cap">The apple and cherry trees at full size. The trees came from their own sheet and are drawn smoother than the pixel-art background and flowers; this is where the difference shows most.</p>
+  </section>
+  <section class="view" id="v-phone" role="tabpanel" aria-labelledby="t-phone" hidden>
+    <div class="phone"><img src="mixed.webp" alt="The whole garden shrunk to phone width"></div>
+    <p class="cap">The garden opens fitted to the screen, so on a phone held upright the whole map is about 412 points wide and a flower is roughly 20 points tall. The player pinches to zoom in.</p>
+  </section>
+</div>
+<script>
+const tabs = [...document.querySelectorAll(".tab")];
+function show(t) {
+  tabs.forEach(b => { const on = b === t; b.setAttribute("aria-selected", String(on)); document.getElementById(b.getAttribute("aria-controls")).hidden = !on; });
+}
+tabs.forEach(b => b.addEventListener("click", () => show(b)));
+</script>
