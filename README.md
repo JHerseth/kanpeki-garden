@@ -52,6 +52,7 @@ Only in AnkiDroid's new study screen (AnkiDroid 2.23 or later, turned on in Sett
 - The coins and the garden are saved in AnkiDroid's localStorage on that phone. They are not synced: studying on another device pays nothing into this garden, and a second phone has a garden of its own.
 - Clearing AnkiDroid's app data, or uninstalling it, deletes the save.
 - The save's format is `v: 3`, which keeps the maps whose signs the player owns, the map they were on last and the map each placed item is on (placed signs are items too). A `v: 2` save (v1.1.0 and earlier) moves over by itself, with everything on the first map; v1.1.0 and earlier then won't open the garden (see [Updating](#updating)).
+- A damaged save is never written over. Damage the garden can mend (a broken entry among the placed items, say) is mended, and the rest of the save is kept. A save it can't read at all (not valid JSON, for one) locks the garden instead of starting it fresh: the garden won't open or pay coins, and says it can't open right now, as it does for a newer version's save. The stored save stays as it was, so it can still be recovered.
 - **Vacation (おやすみ):** a switch in the garden's settings (the gear). While it's on the garden is frozen: plants don't grow, wilt or die, and cards pay no coins (a card answered then still uses up its coin for the day). Shopping, placing, moving and composting still work.
 
 ### Updating

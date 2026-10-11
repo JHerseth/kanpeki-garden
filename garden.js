@@ -290,14 +290,18 @@
    *     order bought; left out while there are none. Signs are never in inv: owning one is being in maps.
    *   at: the map the player was on last, where the garden opens; left out for home.
    * Days are YYYY-MM-DD, starting at 04:00 (today()). v: 1 had no t, g, days or vac; v: 2 no maps, at or m, so it
-   * moves over as it is, with everything on home. */
+   * moves over as it is, with everything on home.
+   * The save is on the player's phone alone, so one written over is a garden gone. Damage that load() can mend is
+   * mended and the rest kept (tidyFields, tidyMaps); a save it can't read at all is locked and never written over. */
   var REVIEWED = 1, VACATION = 2;
   var DYING = 2, DEAD = 4;                  // finished days in a row without reviews
   function fresh() { return { v: 3, coins: 0, earned: 0, seen: {}, inv: {}, placed: [], next: 1, days: {} }; }
   /** The save; the old key's is moved over the first time (v: 1, or v: 2 from a test build), and a v: 2 save
-   *  becomes v: 3 as it is (an older script, which wants v: 2, then locks it as below). A save from a newer
-   *  script (any v but 2 or 3) is never written over: this one then gives a locked, empty garden that
-   *  save() won't store and earn() won't pay into, and the garden only says it can't open. */
+   *  becomes v: 3 as it is (an older script, which wants v: 2, then locks it as below). Damaged fields are mended,
+   *  and the save written once for it. No save under either key starts fresh. A save this script can't read is
+   *  never written over: one from a newer script (any v but 2 or 3), one that isn't JSON or isn't an object, and
+   *  any other that makes a step here throw (storage that can't be read too). This one then gives a locked, empty
+   *  garden that save() won't store and earn() won't pay into, and the garden only says it can't open. */
   function load() {
     try {
       var raw = localStorage.getItem(KEY), changed = false, s;
@@ -308,20 +312,19 @@
         changed = true;
       } else {
         s = JSON.parse(raw);
-        if (!s || typeof s !== "object") return fresh();
+        if (!s || typeof s !== "object") return locked();
         if (s.v === 2) { s.v = 3; changed = true; }
         else if (s.v !== 3) return locked();
       }
+      if (tidyFields(s)) changed = true;
       if (tidyMaps(s)) changed = true;
       if (refundRemoved(s)) changed = true;
-      if (!s.days || typeof s.days !== "object" || Array.isArray(s.days)) { s.days = {}; changed = true; }
       if (s.vac != null && !isDay(s.vac)) { s.vac = today(); changed = true; }    // damaged: still on, from today
       if (enrol(s)) changed = true;
       if (markDead(s)) changed = true;
       if (changed) save(s);
       return s;
-    } catch (e) { /* storage blocked or corrupt: start fresh */ }
-    return fresh();
+    } catch (e) { return locked(); }    // unreadable, or damage nothing here foresaw: leave the stored save be
   }
   function locked() {
     var s = fresh();
@@ -331,6 +334,22 @@
   function save(s) {
     if (s.locked) return false;
     try { localStorage.setItem(KEY, JSON.stringify(s)); return true; } catch (e) { return false; }
+  }
+
+  /** Whether v is an object as JSON gives one: not null, and not an array. */
+  function isObj(v) { return !!v && typeof v === "object" && !Array.isArray(v); }
+  /** Mend the fields every part of the garden reads, after damage: placed, an array, keeps only its entries that are
+   *  objects (null, a number or an array in it is dropped); a missing or non-array placed becomes [], and a missing
+   *  or non-object inv, seen or days becomes {}. coins, earned and next are left as they are: nothing throws on
+   *  them. Whether it changed anything. */
+  function tidyFields(s) {
+    var changed = false;
+    if (!Array.isArray(s.placed)) { s.placed = []; changed = true; }
+    else if (!s.placed.every(isObj)) { s.placed = s.placed.filter(isObj); changed = true; }
+    ["inv", "seen", "days"].forEach(function (f) {
+      if (!isObj(s[f])) { s[f] = {}; changed = true; }
+    });
+    return changed;
   }
 
   /** Whether map `key` is open in save s: home, or one whose sign the player owns. */
@@ -1761,7 +1780,7 @@
 
     showMap();
     showVacation();
-    if (s.locked) {           // a save from a newer script (see load): say so instead of an empty garden
+    if (s.locked) {           // a save from a newer script, or one it can't read (see load): say so, not an empty garden
       confirmBox().append(el("div", "kg-ctext", T.locked));
       ui.confirm.hidden = false;
     }
