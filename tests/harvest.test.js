@@ -1,7 +1,7 @@
 // Harvest: mature vegetables and fruit trees have a crop once they've been mature through a growth day since they
 // matured or were last picked. A ready plant shows a still glint; a tap picks it for ¤2 or ¤5 (¤50 a day at most,
-// earned left alone), and the next tap selects it. The save keeps each plant's picked day (h) and the crops picked
-// today (picked), as a v: 3 save.
+// earned left alone), and the next tap selects it; after a pick the hint offers to pick the rest on the map shown, in
+// one save. The save keeps each plant's picked day (h) and the crops picked today (picked), as a v: 3 save.
 // Every check runs on a fake clock (KG_CLOCK). 2026-10-12 is a Monday.
 // Run: node --test tests/*.test.js
 "use strict";
@@ -267,12 +267,13 @@ test("a tap picks a ready plant: ¤2 a vegetable, ¤5 a fruit tree, earned left 
   assert.strictEqual(g.counted.saves, 1);
   assert.strictEqual(purse(g.root), "12");
   assert.deepStrictEqual(glints(g.root), [2]);
-  assert.strictEqual(shownHint(g.root), null);
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×1 +5✕");            // pick all (see below)
   touch(g.root, 2);
   s = saved(g.stored);
   assert.deepStrictEqual([s.coins, s.earned, s.placed[1].h, s.picked], [17, 40, iso(MON), { day: iso(MON), coins: 7 }]);
   assert.strictEqual(g.counted.saves, 2);
   assert.deepStrictEqual(glints(g.root), []);
+  assert.strictEqual(shownHint(g.root), null);
   // the next tap selects it, to move it, as before
   touch(g.root, 2);
   assert.strictEqual(shownHint(g.root), "ゆびで うごかせるよOK");
@@ -338,7 +339,7 @@ test("the day's cap: ¤50 at most; later picks clear the crop for ¤0, and the f
   const g = garden({ coins: 5, earned: 40, placed, next: 31, days: days(MON) });
   for (let id = 1; id <= 25; id++) touch(g.root, id);
   assert.deepStrictEqual([saved(g.stored).coins, saved(g.stored).picked], [55, { day: iso(MON), coins: 50 }]);
-  assert.strictEqual(shownHint(g.root), null, "¤50 exactly, each pick paid in full");
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×5 +0✕", "¤50 exactly, each pick paid in full: no note");
   touch(g.root, 26);
   assert.deepStrictEqual([saved(g.stored).coins, saved(g.stored).picked.coins], [55, 52]);
   assert.strictEqual(shownHint(g.root), CAP + "OK");
@@ -347,14 +348,14 @@ test("the day's cap: ¤50 at most; later picks clear the crop for ¤0, and the f
   assert.strictEqual(saved(g.stored).placed[25].h, iso(MON));
   assert.strictEqual(floats(g.root).length, 25, "no float for ¤0");
   touch(g.root, 27);                                                        // once a day: not again
-  assert.strictEqual(shownHint(g.root), null);
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×3 +0✕");
   assert.strictEqual(saved(g.stored).coins, 55);
   assert.strictEqual(saved(g.stored).earned, 40);
   // the next card's garden, the same day: still capped, and not said again
   let next = garden(null, { stored: g.stored, now: at(TUE, 3, 59) });
   touch(next.root, 28);
   assert.deepStrictEqual([saved(g.stored).coins, saved(g.stored).picked], [55, { day: iso(MON), coins: 56 }]);
-  assert.strictEqual(shownHint(next.root), null);
+  assert.strictEqual(shownHint(next.root), "のこり ぜんぶ とる ×2 +0✕");
   // from 04:00 the day's cap starts again: the ones left, and those picked Monday (a growth day), pay again
   next = garden(null, { stored: g.stored, now: at(TUE, 4) });
   assert.strictEqual(glints(next.root).length, 30);
@@ -372,7 +373,7 @@ test("a pick the cap cuts short pays what's left of the ¤50 and says so; the no
   assert.strictEqual(shownHint(g.root), CAP + "OK");
   assert.ok(hint(g.root).classList.contains("kg-hint-note"), "it may wrap");
   button(g.root, "OK").click();
-  assert.strictEqual(shownHint(g.root), null);
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×1 +0✕");            // the other pear: pick all (see below)
   assert.ok(!hint(g.root).classList.contains("kg-hint-note"));
   // an old day's count is none: Sunday's 50 don't count on Monday
   const old = garden({ placed: [ripe(1, "pear_tree")], next: 2, picked: { day: iso(11), coins: 50 } });
@@ -399,6 +400,207 @@ test("data-lang=\"en\": the cap's note in English", () => {
   assert.strictEqual(byClass(hint(g.root), "kg-coin").length, 1);
 });
 
+// ---- pick all ------------------------------------------------------------------------------------
+
+/** The offer's button that picks the rest, if the hint shows it. */
+const takeAll = (root) => hint(root).all((n) => n.tagName === "button" && /^(のこり|Pick the rest)/.test(n.textContent))[0];
+
+test("after a pick, with more crops ready on the map shown, the hint offers to pick the rest: how many, for how much", () => {
+  // ready: 2 tomatoes, an apple and a pear; not: a rose (no crop), a carrot picked today and a corn sprout
+  const g = garden({ placed: [ripe(1), ripe(2), ripe(3, "apple"), ripe(4, "pear_tree"), ripe(5, "rose_pink"),
+    ripe(6, "carrot", { h: iso(MON) }), { id: 7, k: "corn", x: 940, y: 700, t: iso(11) }], next: 8 });
+  assert.deepStrictEqual(glints(g.root), [1, 2, 3, 4]);
+  touch(g.root, 1);
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×3 +12✕");
+  const [take, no] = hint(g.root).all((n) => n.tagName === "button");
+  assert.strictEqual(take, takeAll(g.root));
+  assert.ok(take.classList.contains("kg-btn-go"));
+  assert.strictEqual(byClass(take, "kg-coin").length, 1);
+  assert.strictEqual(no.attrs["aria-label"], "やめる");
+  assert.ok(hint(g.root).classList.contains("kg-hint-pick"));
+  assert.strictEqual(g.counted.saves, 1, "the offer saves nothing");
+  // each pick offers what's left; after the last, nothing
+  touch(g.root, 3);
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×2 +7✕");
+  touch(g.root, 2);
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×1 +5✕");
+  touch(g.root, 4);
+  assert.strictEqual(shownHint(g.root), null);
+  assert.ok(!hint(g.root).classList.contains("kg-hint-pick"));
+  // a pick with no other crop ready offers nothing
+  const one = garden({ placed: [ripe(1), ripe(2, "rose_pink")], next: 3 });
+  touch(one.root, 1);
+  assert.strictEqual(shownHint(one.root), null);
+  const css = g.win.document.getElementById("kg-style").textContent;
+  assert.match(css, /\.kg-hint-pick\{padding-left:4px\}/);
+});
+
+test("one tap picks every crop left on the map shown, each as a tap would, in one save; earned stays, other maps wait", () => {
+  const g = garden({ coins: 12, earned: 40, maps: ["riverside"], next: 8, placed: [ripe(1), ripe(2, "corn"),
+    ripe(3, "apple"), ripe(4, "rose_pink"), ripe(5, "tomato", { m: "riverside" }), ripe(6, "apple", { m: "riverside" }),
+    { id: 7, k: "sign_riverside", x: 1500, y: 900 }] });
+  const rose = () => byClass(g.root, "kg-card").find((c) => byClass(c, "kg-name")[0].textContent === "ピンクのバラ");
+  touch(g.root, 1);
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×2 +7✕", "the riverside's two aren't counted");
+  assert.ok(rose().classList.contains("kg-poor"));                          // ¤20; the player has 14
+  takeAll(g.root).click();
+  const s = saved(g.stored);
+  assert.deepStrictEqual([s.coins, s.earned, s.picked], [21, 40, { day: iso(MON), coins: 9 }]);
+  assert.deepStrictEqual(s.placed.map((p) => p.h), [iso(MON), iso(MON), iso(MON), undefined, undefined, undefined, undefined]);
+  assert.strictEqual(g.counted.saves, 2, "one for the tap, one for the rest");
+  assert.strictEqual(purse(g.root), "21");
+  assert.ok(!rose().classList.contains("kg-poor"), "the shop sees the coins at once");
+  assert.deepStrictEqual(glints(g.root), []);
+  // a float from each plant, as a tap's: the tapped tomato's, the corn's and the apple's, each from its own spot
+  assert.deepStrictEqual(floats(g.root), ["+2", "+2", "+5"]);
+  assert.strictEqual(new Set(byClass(g.root, "kg-gain").map((n) => n.style.left)).size, 3);
+  g.win.wait(1100);
+  assert.deepStrictEqual(floats(g.root), []);
+  assert.strictEqual(shownHint(g.root), null, "nothing left to offer");
+  // the next tap on one of them selects it: its crop is picked
+  touch(g.root, 3);
+  assert.deepStrictEqual([outlined(g.root), shownHint(g.root)], [[3], "ゆびで うごかせるよOK"]);
+  // the riverside's crops wait for the player, and a pick there offers only its own
+  touch(g.root, 7);
+  touch(g.root, 7);
+  assert.deepStrictEqual(glints(g.root), [5, 6]);
+  assert.strictEqual(shownHint(g.root), null, "no offer after a walk, before a pick");
+  touch(g.root, 5);
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×1 +5✕");
+});
+
+test("pick all pays as the offer said: in full up to the day's cap, then ¤0; the cap's note follows", () => {
+  const placed = [ripe(1), ripe(2), ripe(3, "apple"), ripe(4)];
+  const g = garden({ coins: 0, earned: 40, placed, next: 5, picked: { day: iso(MON), coins: 41 } });
+  touch(g.root, 1);                                                         // 43 picked today
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×3 +7✕");       // 7 of the 9 they're worth
+  takeAll(g.root).click();
+  const s = saved(g.stored);
+  assert.deepStrictEqual([s.coins, s.earned, s.picked], [9, 40, { day: iso(MON), coins: 52 }]);
+  assert.deepStrictEqual(s.placed.map((p) => p.h), [iso(MON), iso(MON), iso(MON), iso(MON)]);
+  assert.deepStrictEqual(floats(g.root), ["+2", "+2", "+5"], "the last tomato paid nothing: no float");
+  assert.strictEqual(g.counted.saves, 2);
+  assert.strictEqual(shownHint(g.root), CAP + "OK", "the first pick the cap cut short, said once");
+  button(g.root, "OK").click();
+  assert.strictEqual(shownHint(g.root), null);
+});
+
+test("after a pick the cap cut short, its note shows first and the offer after its OK, for ¤0: picking only clears", () => {
+  const g = garden({ coins: 0, earned: 40, placed: [ripe(1), ripe(2), ripe(3, "apple")], next: 4,
+    picked: { day: iso(MON), coins: 49 } });
+  touch(g.root, 1);                                                         // ¤1 of its 2
+  assert.strictEqual(shownHint(g.root), CAP + "OK");
+  assert.ok(!hint(g.root).classList.contains("kg-hint-pick"));
+  button(g.root, "OK").click();
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×2 +0✕");
+  assert.ok(!hint(g.root).classList.contains("kg-hint-note"));
+  takeAll(g.root).click();
+  const s = saved(g.stored);
+  assert.deepStrictEqual([s.coins, s.earned, s.picked], [1, 40, { day: iso(MON), coins: 58 }]);
+  assert.deepStrictEqual(s.placed.map((p) => p.h), [iso(MON), iso(MON), iso(MON)]);
+  assert.deepStrictEqual(glints(g.root), []);
+  assert.deepStrictEqual(floats(g.root), ["+1"], "none for ¤0");
+  assert.strictEqual(g.counted.saves, 2);
+  assert.strictEqual(shownHint(g.root), null, "the note was said already");
+  // a tap on the map puts the note away, and the offer it would have led to with it
+  const tap = garden({ placed: [ripe(1), ripe(2)], next: 3, picked: { day: iso(MON), coins: 50 } });
+  touch(tap.root, 1);
+  assert.strictEqual(shownHint(tap.root), CAP + "OK");
+  touch(tap.root, null);
+  assert.strictEqual(shownHint(tap.root), null);
+  assert.deepStrictEqual(glints(tap.root), [2]);
+});
+
+test("✕ closes the offer, and so does any other tap: the map, or a plant, which it selects; a ready one it picks", () => {
+  const g = garden({ placed: [ripe(1), ripe(2), ripe(3), ripe(4), { id: 5, k: "bench", x: 700, y: 900 }], next: 6 });
+  touch(g.root, 1);
+  button(g.root, "✕").click();
+  assert.strictEqual(shownHint(g.root), null);
+  assert.ok(!hint(g.root).classList.contains("kg-hint-pick"));
+  assert.deepStrictEqual([g.counted.saves, glints(g.root)], [1, [2, 3, 4]], "nothing more picked");
+  touch(g.root, 2);                                                         // another pick: offered again, one fewer
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×2 +4✕");
+  touch(g.root, null);
+  assert.strictEqual(shownHint(g.root), null);
+  touch(g.root, 3);
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×1 +2✕");
+  touch(g.root, 5);                                                         // the bench: selected, its own hint
+  assert.deepStrictEqual([outlined(g.root), shownHint(g.root)], [[5], "ゆびで うごかせるよしまうOK"]);
+  touch(g.root, 5);                                                         // and let go: the offer doesn't come back
+  assert.strictEqual(shownHint(g.root), null);
+  assert.deepStrictEqual([saved(g.stored).coins, glints(g.root), g.counted.saves], [6, [4], 3]);
+});
+
+test("moving the test day, switching vacation or placing something closes the offer; a new opening has none", () => {
+  const over = { inv: { bench: 1 }, placed: [ripe(1), ripe(2), ripe(3)], next: 4 };
+  // the test day
+  let g = garden(over, { data: { dev: "1" } });
+  touch(g.root, 1);
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×2 +4✕");
+  const panel = openSettings(g.root);
+  byClass(panel, "kg-dev").find((b) => b.textContent === "+1日").click();
+  assert.strictEqual(shownHint(g.root), null);
+  assert.deepStrictEqual(glints(g.root), [2, 3]);
+  // vacation, on and off again
+  g = garden(over);
+  touch(g.root, 1);
+  const sw = byClass(openSettings(g.root), "kg-vac")[0];
+  sw.click();
+  byClass(g.root, "kg-confirm")[0].all((n) => n.tagName === "button" && n.textContent === "はい")[0].click();
+  assert.deepStrictEqual([shownHint(g.root), glints(g.root)], [null, []]);
+  sw.click();
+  assert.deepStrictEqual([shownHint(g.root), glints(g.root)], [null, [2, 3]]);
+  // placing: the bag's bench, then ✕
+  g = garden(over);
+  touch(g.root, 1);
+  byClass(g.root, "kg-tab").find((n) => /もちもの/.test(n.textContent)).click();
+  byClass(g.root, "kg-card")[0].click();
+  assert.strictEqual(shownHint(g.root), "タップ して おいてね✕");
+  button(g.root, "✕").click();
+  assert.strictEqual(shownHint(g.root), null);
+  // closing the garden: the next opening offers nothing until a pick
+  g = garden(over);
+  touch(g.root, 1);
+  byClass(g.root, "kg-close")[0].click();
+  const again = garden(null, { stored: g.stored });
+  assert.deepStrictEqual([shownHint(again.root), glints(again.root)], [null, [2, 3]]);
+});
+
+test("pick all in a garden left open past 04:00 sees each plant's life then: ones that turned dying aren't picked", () => {
+  const g = garden({ placed: [ripe(1), ripe(2), ripe(3)], next: 4 }, { now: at(TUE, 23) });   // Monday missed: well
+  touch(g.root, 1);
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×2 +4✕");
+  g.win.KG_CLOCK = () => at(WED, 4);                                        // Tuesday missed too: dying
+  takeAll(g.root).click();
+  const s = saved(g.stored);
+  assert.deepStrictEqual([s.coins, s.placed.map((p) => p.h)], [2, [iso(TUE), undefined, undefined]]);
+  assert.deepStrictEqual(glints(g.root), [], "their glints go with their crops");
+  assert.strictEqual(shownHint(g.root), null);
+});
+
+test("zoomed in, pick all floats the coins up from each plant in the view; one out of it has none", () => {
+  // about the map's middle, 4 times: the tomatoes are in the view, the corn far left and the apple far right aren't
+  const g = garden({ placed: [ripe(1, "tomato", { x: 1000, y: 600 }), ripe(2, "tomato", { x: 1100, y: 600 }),
+    ripe(3, "corn", { x: 220 }), ripe(4, "apple", { x: 1900 })], next: 5 });
+  const zin = byClass(g.root, "kg-zbtn")[0];
+  for (let i = 0; i < 4; i++) zin.click();
+  touch(g.root, 1);
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×3 +9✕");
+  takeAll(g.root).click();
+  assert.strictEqual(saved(g.stored).coins, 11, "they all pay");
+  assert.deepStrictEqual(floats(g.root), ["+2", "+2"], "none piled up at the view's sides");
+});
+
+test("data-lang=\"en\": the offer in English", () => {
+  const g = garden({ placed: [ripe(1), ripe(2, "apple"), ripe(3)], next: 4 }, { data: { lang: "en" } });
+  touch(g.root, 1);
+  assert.strictEqual(shownHint(g.root), "Pick the rest ×2 +7✕");
+  assert.strictEqual(byClass(takeAll(g.root), "kg-coin").length, 1);
+  assert.strictEqual(button(g.root, "✕").attrs["aria-label"], "Cancel");
+  takeAll(g.root).click();
+  assert.deepStrictEqual([saved(g.stored).coins, glints(g.root)], [9, []]);
+});
+
 // ---- taps in the garden's other modes --------------------------------------------------------------
 
 test("while placing, a tap on a ready plant places the item there and picks nothing", () => {
@@ -420,7 +622,7 @@ test("a pick ends a selection, a sign's label and compost all, as a tap on the m
   touch(g.root, 4);                                                         // a decoration selected
   assert.deepStrictEqual(outlined(g.root), [4]);
   touch(g.root, 1);
-  assert.deepStrictEqual([outlined(g.root), shownHint(g.root), saved(g.stored).coins], [[], null, 2]);
+  assert.deepStrictEqual([outlined(g.root), shownHint(g.root), saved(g.stored).coins], [[], "のこり ぜんぶ とる ×2 +4✕", 2]);
   touch(g.root, 5);                                                         // a sign selected, its label shown
   assert.ok(label());
   touch(g.root, 2);

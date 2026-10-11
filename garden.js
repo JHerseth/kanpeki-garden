@@ -34,7 +34,11 @@
  * (lifeOf). A ready plant shows a still glint above it, swaying with it (showCrop); a tap picks it for ¤2 (a
  * vegetable) or ¤5 (a fruit tree), with the coins floating up from it, and the next tap selects it as before. Picking
  * pays PICK_CAP (¤50) a day at most: later picks clear the crop for nothing, and the first that the cap cuts short
- * in a day says so in the hint (harvest). Its coins aren't counted in earned.
+ * in a day says so in the hint (pickCrops). Its coins aren't counted in earned. After a pick, while more crops are
+ * ready on the map shown, the hint offers 「のこり ぜんぶ とる ×n ¤+N」, pick all: a tap picks every one of them, each as
+ * a tap would, in one save, for N, what they pay together under the cap (¤+0 once it's reached). Its ✕, the next tap
+ * on the map, or anything that changes what's ready there (a walk, placing, vacation, the test day) closes the offer;
+ * after a pick that the cap cut short, it comes once the cap's note is put away with its OK.
  *
  * Maps (MAPS): the home map, 「わたしのにわ」, and two more, 「かわべの はらっぱ」 and 「たきの たかだい」. A map's signpost is its
  * key: the shop's とち tab sells 「かわべの はらっぱ」's for ¤500, then, once that is owned, 「たきの たかだい」's for ¤1000
@@ -45,8 +49,8 @@
  * へ ▶」; a second tap on it or its label walks there. A walk fades the view over to the next map, centred on its sign
  * back to the map left, or on its middle without one; a map's picture loads the first time the player walks there,
  * and the garden opens on the map visited last. Placed items belong to the map they were placed on, and placing,
- * moving, putting away, composting, compost all, picking and the butterflies only see the map shown; coins, もちもの,
- * the shop and vacation are shared, and the life cycle runs on every map, shown or not.
+ * moving, putting away, composting, compost all, picking, pick all and the butterflies only see the map shown; coins,
+ * もちもの, the shop and vacation are shared, and the life cycle runs on every map, shown or not.
  *
  * Settings: the gear in the garden's top bar opens a panel with this phone's motion preferences
  * (prefSwitch), the vacation switch, on a dev slot the test section, and at the bottom the build's version
@@ -163,6 +167,8 @@
       compostAllAsk: function (n, back) { return "かれた くさばな " + TEXT.ja.count(n) + " を ぜんぶ たいひにする？ ¤+" + back; },
       // the harvest's note, after the first pick in a day that the day's cap of n coins cut short
       pickCap: function (n) { return "きょうの しゅうかくは ¤" + n + " まで"; },
+      // pick all: the hint's offer after a pick, with the count of crops left on the map and what they'd pay together
+      pickAll: function (n, pay) { return "のこり ぜんぶ とる " + TEXT.ja.count(n) + " ¤+" + pay; },
       yes: "はい",
       drag: "ゆびで うごかせるよ",
       putAway: "しまう",
@@ -228,6 +234,7 @@
       compostAllAsk: function (n, back) { return "Compost all " + n + " dead plants? ¤+" + back; },
       // \u00a0: wrapped on a phone, "each day" goes to the second line together
       pickCap: function (n) { return "You can earn up to ¤" + n + " from picking each\u00a0day"; },
+      pickAll: function (n, pay) { return "Pick the rest ×" + n + " ¤+" + pay; },
       yes: "Yes",
       drag: "Drag it to move it",
       putAway: "Put away",
@@ -558,6 +565,9 @@
   var FRUIT = ["apple", "orange_tree", "pear_tree"];
   /** The coins a crop of item pays when it's picked, or 0 for an item that has no crop. */
   function cropOf(item) { return item.tab === "やさい" ? VEG_PAY : FRUIT.indexOf(item.key) >= 0 ? FRUIT_PAY : 0; }
+  /** What crops worth `worth` coins together pay when they're picked after crops worth `before` on the same day: as
+   *  much of it as PICK_CAP leaves. */
+  function pickPay(before, worth) { return Math.min(PICK_CAP, before + worth) - Math.min(PICK_CAP, before); }
 
   /** Where placed plant p is in its life cycle now: {g: growth stage, missed: finished days in a row
    *  without reviews, dead, crop}, or null outside the life cycle. Worked out from s.days, s.vac and p.h alone
@@ -1018,7 +1028,8 @@
     var placing = null;       // item key being placed
     var selected = null;      // placed id
     var composting = false;   // the hint asks to compost every dead plant (compost all), all of them outlined
-    var capped = false;       // the hint says today's picking has reached PICK_CAP (harvest), until a tap or its OK
+    var capped = false;       // the hint says today's picking has reached PICK_CAP (pickCrops), until a tap or its OK
+    var offering = false;     // after a pick, the hint offers to pick the crops left on the map shown, until a tap or its ✕
     var here = mapAt(s);      // the map shown
     var goSize = [0, 0];      // the selected sign's label's size, read once each time it's shown (showGo)
     var shownScale = null;    // the camera's scale as the world's --kg-s last had it
@@ -1292,7 +1303,7 @@
     function select(id) {
       var prev = selected;
       selected = id;
-      capped = false;              // the cap's note goes with the next tap, on the map or an item
+      capped = offering = false;   // the cap's note and the pick-all offer go with the next tap, on the map or an item
       if (id != null) scare(id);   // no butterfly on the flower the player is about to move (pick leaves it out too)
       if (composting) askAll(false, true);
       if (prev != null && find(prev)) drawPlaced(find(prev));
@@ -1300,7 +1311,7 @@
       showHint();
     }
     function showHint() {
-      var noted = false;
+      var noted = false, offered = false, rest = offering ? onHere().filter(ripe) : [];
       ui.hint.textContent = "";
       if (placing) {
         var it = ITEMS[placing];
@@ -1366,7 +1377,8 @@
         }
         ui.hint.hidden = false;
       } else if (capped) {
-        // today's picking has reached PICK_CAP (harvest): its OK, or the next tap (select), puts the note away
+        // today's picking has reached PICK_CAP (pickCrops): its OK, or the next tap (select), puts the note away. After
+        // a tap's pick, the offer to pick the rest comes with the OK
         var note = el("span");
         note.append.apply(note, coined(T.pickCap(PICK_CAP)));
         var gotIt = el("button", "kg-btn kg-btn-go", T.ok);
@@ -1375,11 +1387,33 @@
         ui.hint.append(note, gotIt);
         ui.hint.hidden = false;
         noted = true;
+      } else if (rest.length) {
+        // after a pick, pick all: the crops left on the map shown, and what they'd pay together under today's
+        // PICK_CAP (¤+0 once it's reached: picking them then only clears them). A tap picks them all, each as a tap
+        // would (pickCrops); its ✕, or the next tap (select), closes the offer
+        var worth = 0;
+        rest.forEach(function (q) { worth += cropOf(ITEMS[q.k]); });
+        var take = el("button", "kg-btn kg-btn-go");
+        take.type = "button";
+        take.append.apply(take, coined(T.pickAll(rest.length, pickPay(pickedOn(today()), worth))));
+        take.addEventListener("click", function () {
+          lives = {};           // each plant's life now, if the garden stayed open past 04:00, as a tap sees its own
+          onHere().forEach(drawPlaced);
+          pickCrops(onHere().filter(ripe), true);
+        });
+        var skip = el("button", "kg-btn kg-x", "✕");
+        skip.type = "button";
+        skip.setAttribute("aria-label", T.cancel);
+        skip.addEventListener("click", function () { offering = false; showHint(); });
+        ui.hint.append(take, skip);
+        ui.hint.hidden = false;
+        offered = true;
       } else {
         ui.hint.hidden = true;
       }
       ui.hint.classList.toggle("kg-hint-all", composting && !ui.hint.hidden);
       ui.hint.classList.toggle("kg-hint-note", noted);
+      ui.hint.classList.toggle("kg-hint-pick", offered);
       showGo();
     }
     /** Ask to compost every dead plant (on), outlining them all, or leave the question (off) for the selected
@@ -1407,36 +1441,48 @@
       renderGrid();
       flutter(true);
     }
-    /** Pick placed plant p's crop (ripe): pay what it's worth as far as today's PICK_CAP goes, note the day on it (h)
-     *  and the crops picked today (s.picked), float the coins up from it (gain) and take its glint away, in one save;
-     *  earned stays as it is. A selection ends, as at a tap on the map. The first pick in a day that the cap cuts short
-     *  (paying less than its worth, or nothing) says so in the hint: s.picked counts what the crops were worth, paid
-     *  or not, so a count already past PICK_CAP means an earlier pick today was cut short, and said so. */
+    /** Pick the crops of placed plants ps (each ripe), each as harvest picks it, in one save: a tap's one plant, or
+     *  with all, every crop left on the map shown (the hint's offer). earned stays as it is. A selection ends, as at a
+     *  tap on the map. The first pick in a day that the cap cuts short (paying less than its worth, or nothing) says so
+     *  in the hint: s.picked counts what the crops were worth, paid or not, so a count already past PICK_CAP means an
+     *  earlier pick today was cut short, and said so. After a tap's pick the hint offers to pick the crops left on the
+     *  map shown (offering), once the cap's note, if it shows, is put away with its OK. */
+    function pickCrops(ps, all) {
+      var day = today(), before = pickedOn(day), paid = 0;
+      select(null);
+      ps.forEach(function (p) { paid += harvest(p); });
+      persist();
+      if (paid) renderGrid();   // prices the player can now pay lose their grey
+      capped = before <= PICK_CAP && pickedOn(day) > PICK_CAP;
+      offering = !all;
+      showHint();
+    }
+    /** Pick placed plant p's crop (ripe), for pickCrops, which saves: pay what it's worth as far as today's PICK_CAP
+     *  goes, note the day on it (h) and the crops picked today (s.picked), float the coins up from it (gain) and take
+     *  its glint away. What it paid. */
     function harvest(p) {
       var day = today(), worth = cropOf(ITEMS[p.k]);
-      var before = s.picked && s.picked.day === day ? s.picked.coins : 0;
-      var pay = Math.min(PICK_CAP, before + worth) - Math.min(PICK_CAP, before);
-      select(null);
+      var before = pickedOn(day), pay = pickPay(before, worth);
       s.picked = { day: day, coins: before + worth };
       s.coins += pay;
       p.h = day;
       delete lives[p.id];
-      persist();
       drawPlaced(p);
-      if (pay) {
-        gain(p, pay);
-        renderGrid();           // prices the player can now pay lose their grey
-      }
-      capped = before <= PICK_CAP && before + worth > PICK_CAP;
-      showHint();
+      if (pay) gain(p, pay);
+      return pay;
     }
+    /** What the crops picked on `day` were worth (s.picked), paid or not: 0 when s.picked is another day's. */
+    function pickedOn(day) { return s.picked && s.picked.day === day ? s.picked.coins : 0; }
     /** Float n coins up from placed plant p, from the top of its picture, as a card's coin floats up from its chip
      *  (kg-up): at screen size over the map, whatever the zoom, and taken away once that's done (1.1 s). Its spot is
      *  kept GAIN_EDGE px in from the view's sides and GAIN_TOP px down from its top, so the coins stay in the view
-     *  when the picture's top is out of it. */
+     *  when the picture's top is out of it. A picture all out of the view (pick all takes the whole map's) has none:
+     *  its coins would only pile up at the view's side. */
     function gain(p, n) {
-      var f = stageFrame(ITEMS[p.k], life(p)), up = el("div", "kg-gain"), coins = el("span");
+      var f = stageFrame(ITEMS[p.k], life(p)), w = f.w * KG_SCALE * cam.s, h = f.h * KG_SCALE * cam.s;
       var x = cam.x + (p.x + (f.w / 2 - f.ax) * KG_SCALE) * cam.s, y = cam.y + (p.y - f.ay * KG_SCALE) * cam.s;
+      if (x + w / 2 <= 0 || x - w / 2 >= view.clientWidth || y + h <= 0 || y >= view.clientHeight) return;
+      var up = el("div", "kg-gain"), coins = el("span");
       coins.append.apply(coins, coined("¤+" + n));
       up.append(coins);
       up.style.left = Math.max(GAIN_EDGE, Math.min(view.clientWidth - GAIN_EDGE, x)) + "px";
@@ -1785,11 +1831,14 @@
     function setVacation(on) {
       vacation(s, on);
       hist = history(s);
-      // the stages stay as they are, but no crop is ready while it's on: their glints go, and come back after
+      // the stages stay as they are, but no crop is ready while it's on: their glints go, and come back after; the
+      // offer to pick the rest closes either way
       lives = {};
+      offering = false;
       onHere().forEach(drawPlaced);
       persist();
       showVacation();
+      showHint();
       flutter(true);          // none while it's on
     }
     vacBtn.addEventListener("click", function () {
@@ -1853,6 +1902,7 @@
       lives = {};
       composting = false;     // which plants are dead may change: back to the selected plant's own question
       capped = false;         // the cap's note was for the day left
+      offering = false;       // and so was the offer to pick the rest
       onHere().forEach(drawPlaced);
       persist();
       showVacation();
@@ -1949,7 +1999,7 @@
         if (gesture.id != null) delete lives[gesture.id];   // its life now, if the garden stayed open past 04:00
         if (placing) place(placing, toWorld(e.clientX, e.clientY));
         else if (gesture.id != null && gesture.id === selected && selectedSign()) walk(signTo(selectedSign()));   // a second tap
-        else if (gesture.id != null && ripe(find(gesture.id))) harvest(find(gesture.id));     // the next tap selects it
+        else if (gesture.id != null && ripe(find(gesture.id))) pickCrops([find(gesture.id)]);   // the next tap selects it
         else if (gesture.id != null) select(gesture.id === selected ? null : gesture.id);
         else select(null);
       }
@@ -2181,6 +2231,7 @@
     // at its spaces only (keep-all keeps the kana words whole), in a pill with smaller corners for two lines
     ".kg-hint-all,.kg-hint-note{border-radius:18px}",
     ".kg-hint-all>span,.kg-hint-note>span{white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.35}",
+    ".kg-hint-pick{padding-left:4px}",     // the offer to pick the rest: only its buttons, as far in on each side
     ".kg-hint .kg-sprite{flex:none}",
     ".kg-hint .kg-btn{flex:none;min-height:30px;padding:2px 10px;pointer-events:auto;border-radius:999px}",   // only the text gives way
     ".kg-hint .kg-x{width:30px;padding:0}",
