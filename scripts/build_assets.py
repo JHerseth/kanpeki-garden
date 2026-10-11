@@ -5,11 +5,13 @@
 
     art/sprites.png       sprite sheet with transparency (1678x937)
     art/stages/<key>.png  one plant's life cycle as a strip of frames (Git LFS)
-    art/decor/<key>.png   a decoration that isn't on the sheet, as one picture (Git LFS)
-    art/background.jpg    garden map (2000x1116)
+    art/decor/<key>.png   a decoration that isn't on the sheet, as one picture (Git LFS); sign.png, the exits' signpost
+    art/background.jpg    garden map (2000x1116), the home map
+    art/maps/<key>.png    another map, any size (Git LFS)
  -> media/_garden_sprites<n>.webp   every frame packed in atlases of at most ATLAS_MAX px a side
-    media/_garden_bg.webp
+    media/_garden_bg.webp, media/_garden_bg_<key>.webp   the maps, each WORLD_W x WORLD_H
     catalog.js                   KG_CATALOG: per item its shop data and frames (format in the file),
+                                        KG_SIGN: the signpost's frame, which the shop doesn't sell,
                                         KG_REMOVED: {key: [name, English name, price]} for items taken out of the shop
     art/removed/<key>.png        the crops of those items, kept as a backup (rewritten only if their pixels change)
     media/_garden.js             catalog.js + KG_VERSION + garden.js, the file the card templates load
@@ -33,7 +35,12 @@ the sheet sprite's, or for a potted plant the pot is as wide as on the sheet (PO
 a strip stay in the catalog with their sheet sprite, so one the player owns still shows, but are not sold.
 
 A decoration with a picture in art/decor/ is one frame: every opaque piece of it (loose leaves
-too), anchored at the bottom centre of its ground patch and scaled to DECOR_W garden pixels wide.
+too), anchored at the bottom centre of its ground patch (or of its post, for POSTS) and scaled to DECOR_W garden
+pixels wide.
+The signpost that stands at each exit between maps (SIGN) is made the same way, but isn't in the shop.
+
+A map in art/maps/ is scaled to WORLD_W wide and cut to WORLD_H high about its middle, so every map has the
+home map's size, and its rocks and stones the home map's scale.
 """
 import json
 import math
@@ -47,6 +54,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ART = os.path.join(REPO, "art")
 STAGES = os.path.join(ART, "stages")
 DECOR = os.path.join(ART, "decor")
+MAPS = os.path.join(ART, "maps")
 OUT = REPO
 MEDIA = os.path.join(OUT, "media")
 
@@ -91,7 +99,14 @@ POT_W = {"aloe": 60, "cactus": 59, "flytrap": 49, "jade": 63, "pot_fern": 54, "p
 # trailing leaves): they get this x their pot-width scale.
 POT_SCALE = {"basket": 0.75, "hang_fern": 0.75, "hang_ivy": 0.75, "hang_spider": 0.75}
 # Decorations from their own picture: width in the garden (background pixels), chosen by eye for each
-DECOR_W = {"bench": 180}         # ~105 tall: the seat at about the gnome's waist
+DECOR_W = {"bench": 180,         # ~105 tall: the seat at about the gnome's waist
+           "sign": 80}           # ~90 tall: about a gnome and a half, standing on a path
+# Pictures drawn opaque that came with a body of alpha 250-254 and a glow round it: alpha 128 and up is made
+# 255 and the rest 0, so the body draws solid and no haze is left at its edge
+SOLID = {"sign"}
+POSTS = {"sign"}                 # a post with tufts round its foot, no ground patch: anchored at the post's foot
+SIGN = "sign"                    # the signpost at the exits between maps: art/decor/sign.png, its arrow pointing right
+WORLD_W, WORLD_H = 2000, 1116    # every map, as garden.js has it
 ATLAS_MAX = 2048                 # px a side, well inside what phone WebViews take as one texture
 
 # Prices by size: 20 small flowers, clover, mushrooms, small things ·
@@ -430,15 +445,36 @@ def decor_frame(key):
     """A decoration's own picture -> (image, anchor x, anchor y) in atlas pixels, DECOR_W garden pixels wide."""
     assert key in DECOR_W, f"{key}: a picture in art/decor/ but no width in DECOR_W"
     rgba = np.asarray(Image.open(os.path.join(DECOR, key + ".png")).convert("RGBA")).copy()
-    rgba[..., 3] = np.where(rgba[..., 3] < 40, 0, rgba[..., 3])           # faint glow haze, as on the strips
+    if key in SOLID:
+        rgba[..., 3] = np.where(rgba[..., 3] >= 128, 255, 0)
+    else:
+        rgba[..., 3] = np.where(rgba[..., 3] < 40, 0, rgba[..., 3])       # faint glow haze, as on the strips
     ys, xs = np.nonzero(rgba[..., 3])
     a = rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1]
     m = a[..., 3] > 0
-    # the patch is drawn in perspective, its lowest rows off to one side: centre on its widest row instead
-    low = int(len(m) * 0.6)
-    xs = np.nonzero(m[low + np.argmax(m[low:].sum(1))])[0]
-    ax, ay = (xs.min() + xs.max() + 1) / 2, ground_anchor(m)[1]
+    if key in POSTS:
+        # the post alone: the narrowest row between the board and the tufts at its foot (40-80% of the way down);
+        # the anchor is its middle, on the picture's lowest row
+        rows = np.arange(int(len(m) * 0.4), int(len(m) * 0.8))
+        width = m[rows].sum(1)
+        xs = np.nonzero(m[rows[np.argmin(np.where(width > 0, width, len(m[0]) + 1))]])[0]
+        ax, ay = (xs.min() + xs.max() + 1) / 2, len(m)
+    else:
+        # the patch is drawn in perspective, its lowest rows off to one side: centre on its widest row instead
+        low = int(len(m) * 0.6)
+        xs = np.nonzero(m[low + np.argmax(m[low:].sum(1))])[0]
+        ax, ay = (xs.min() + xs.max() + 1) / 2, ground_anchor(m)[1]
     return resample(a, ax, ay, DECOR_W[key] / SCALE / a.shape[1])
+
+
+def map_picture(path):
+    """A map's picture -> WORLD_W x WORLD_H RGB: scaled to WORLD_W wide (Lanczos), then cut to WORLD_H high
+    about its middle."""
+    im = Image.open(path).convert("RGB")
+    h = round(im.height * WORLD_W / im.width)
+    assert h >= WORLD_H, f"{path}: too low for {WORLD_W} x {WORLD_H} at {WORLD_W} wide ({h})"
+    top = (h - WORLD_H) // 2
+    return im.resize((WORLD_W, h), Image.LANCZOS).crop((0, top, WORLD_W, top + WORLD_H))
 
 
 def pack(sizes, side, pad=2):
@@ -497,6 +533,7 @@ HEADER = """\
 // Generated by scripts/build_assets.py; rebuild it there.
 // KG_ATLAS: [file, width, height] per atlas in the media folder.
 // KG_SCALE: atlas pixels -> garden pixels.
+// KG_SIGN: the signpost at the exits between maps, one frame as in KG_CATALOG below; not in the shop.
 // KG_CATALOG: [key, name, English name, shop tab, price, sold, frames] per item, in shop order.
 //   name: the Japanese one, shown unless the slot has data-lang="en"; then the English name shows.
 //   sold: false for a plant whose stage art hasn't come yet; it stays here so one the player owns still shows.
@@ -539,6 +576,9 @@ def main():
         items.append([key, name, en, tab, price, tab not in PLANT_TABS or len(own) > 1, len(frames), len(own)])
         frames += own
     assert set(refunds) == REMOVED, f"not in CATALOG: {REMOVED - set(refunds)}"
+    assert all(key != SIGN for key, *_ in CATALOG), "the signpost is in the shop"
+    sign = len(frames)
+    frames.append(decor_frame(SIGN))
     pos, sizes = pack([im.size for im, _, _ in frames], ATLAS_MAX)
     atlases = [Image.new("RGBA", s, (0, 0, 0, 0)) for s in sizes]
     boxes = []
@@ -552,20 +592,26 @@ def main():
     files = [f"_garden_sprites{i + 1}.webp" for i in range(len(atlases))]
     for im, f in zip(atlases, files):
         im.save(os.path.join(MEDIA, f), quality=90, method=6)
+    backgrounds = ["_garden_bg.webp"]
     Image.open(os.path.join(ART, "background.jpg")).convert("RGB").save(
-        os.path.join(MEDIA, "_garden_bg.webp"), quality=85, method=6)
+        os.path.join(MEDIA, backgrounds[0]), quality=85, method=6)
+    for f in sorted(os.listdir(MAPS)):
+        if f.endswith(".png"):
+            backgrounds.append(f"_garden_bg_{f[:-4]}.webp")
+            map_picture(os.path.join(MAPS, f)).save(os.path.join(MEDIA, backgrounds[-1]), quality=85, method=6)
     entries = [[key, name, en, tab, price, sold, boxes[i:i + n]] for key, name, en, tab, price, sold, i, n in items]
     with open(os.path.join(OUT, "catalog.js"), "w", encoding="utf-8") as f:
         f.write(HEADER)
         f.write("var KG_ATLAS = " + json.dumps([[name, im.width, im.height] for name, im in zip(files, atlases)]) + ";\n")
         f.write(f"var KG_SCALE = {SCALE};\n")
+        f.write("var KG_SIGN = " + json.dumps(boxes[sign]) + ";\n")
         f.write("var KG_CATALOG = [\n" + ",\n".join(json.dumps(e, ensure_ascii=False) for e in entries) + "\n];\n")
         f.write("// No longer sold: key -> [name, English name, price], refunded if the player still has one\n")
         f.write(f"var KG_REMOVED = {json.dumps(dict(sorted(refunds.items())), ensure_ascii=False)};\n")
     staged = sum(n > 1 for *_, n in items)
     print(f"{len(entries)} items ({staged} from strips, {len(unsold)} plants not sold: {' '.join(unsold)}), "
           f"{len(frames)} frames")
-    for f, im in zip(files + ["_garden_bg.webp"], atlases + [None]):
+    for f, im in zip(files + backgrounds, atlases + [None] * len(backgrounds)):
         size = f"{im.width}x{im.height}, " if im else ""
         print(f, size + str(os.path.getsize(os.path.join(MEDIA, f)) // 1024), "KB")
 

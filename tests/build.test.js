@@ -49,3 +49,29 @@ print(json.dumps(out))`], { cwd: DIR, encoding: "utf8" });
     "not a picture": true, "again": false,
   });
 });
+
+test("a map in art/maps/ is scaled to 2000 px wide and cut to 2000 x 1116 about its middle", { skip: noBuild }, () => {
+  const r = spawnSync("python3", ["-B", "-c", `
+import sys; sys.path.insert(0, 'scripts')
+import json, os, tempfile
+from PIL import Image
+from build_assets import map_picture, WORLD_W, WORLD_H
+out = {}
+with tempfile.TemporaryDirectory() as d:
+    p = os.path.join(d, "m.png")
+    im = Image.new("RGB", (1672, 941), (0, 128, 0))
+    for x in range(1672):                              # a red band at the top and a blue one at the bottom, 8 rows each
+        for y in range(8):
+            im.putpixel((x, y), (255, 0, 0)); im.putpixel((x, 940 - y), (0, 0, 255))
+    im.save(p)
+    m = map_picture(p)
+    out["size"] = list(m.size)
+    out["world"] = [WORLD_W, WORLD_H]
+    # 941 rows scale to 1126; 5 are cut from the top and 5 from the bottom, so a little of each band is left
+    out["top"] = m.getpixel((800, 0))[0] > 128
+    out["bottom"] = m.getpixel((800, WORLD_H - 1))[2] > 128
+    out["middle"] = m.getpixel((800, 558))
+print(json.dumps(out))`], { cwd: DIR, encoding: "utf8" });
+  assert.strictEqual(r.status, 0, r.stderr);
+  assert.deepStrictEqual(JSON.parse(r.stdout), { size: [2000, 1116], world: [2000, 1116], top: true, bottom: true, middle: [0, 128, 0] });
+});
