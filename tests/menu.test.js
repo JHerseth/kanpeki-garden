@@ -10,8 +10,8 @@ const { KEY, page, openGarden, openSettings } = require("./harness");
 const NOW = new Date(2026, 9, 12, 10).getTime();
 const PREFS_KEY = "kanpekikun-garden-opts";
 const byClass = (root, c) => root.all((n) => n.classList.contains(c));
-const stored2 = (over) => ({ [KEY]: JSON.stringify(Object.assign(
-  { v: 2, coins: 0, earned: 0, seen: {}, inv: {}, placed: [], next: 1, days: {} }, over)) });
+const stored3 = (over) => ({ [KEY]: JSON.stringify(Object.assign(
+  { v: 3, coins: 0, earned: 0, seen: {}, inv: {}, placed: [], next: 1, days: {} }, over)) });
 const shown = (n) => !n.hidden;
 const menu = (root) => byClass(root, "kg-menu")[0];
 const gear = (root) => byClass(root, "kg-gear")[0];
@@ -23,7 +23,7 @@ const bugs = (root) => byClass(root, "kg-bug").length;
 const sw = (root, label) => byClass(root, "kg-opt").find((n) => n.textContent === label);
 
 test("the top bar is title, coins, gear, とじる; the settings start closed", () => {
-  const root = openGarden(page(stored2({ coins: 12 }), { now: NOW }), 7);
+  const root = openGarden(page(stored3({ coins: 12 }), { now: NOW }), 7);
   const top = byClass(root, "kg-top")[0];
   assert.deepStrictEqual(top.children.map((n) => n.className.split(" ").pop()),
     ["kg-title", "kg-purse", "kg-gear", "kg-close"]);
@@ -34,7 +34,7 @@ test("the top bar is title, coins, gear, とじる; the settings start closed", 
 });
 
 test("the gear opens the panel; its とじる, a tap beside it or the gear again closes it", () => {
-  const root = openGarden(page(stored2({}), { now: NOW }));
+  const root = openGarden(page(stored3({}), { now: NOW }));
   const panel = openSettings(root);
   assert.ok(shown(menu(root)));
   assert.strictEqual(gear(root).attrs["aria-expanded"], "true");
@@ -55,7 +55,7 @@ test("the gear opens the panel; its とじる, a tap beside it or the gear again
 });
 
 test("closing the garden closes the panel, and the next garden opens without it", () => {
-  const stored = stored2({});
+  const stored = stored3({});
   const win = page(stored, { now: NOW });
   let root = openGarden(win, 7);
   openSettings(root);
@@ -67,7 +67,7 @@ test("closing the garden closes the panel, and the next garden opens without it"
 });
 
 test("in the panel: the sway switch, the butterflies switch, the vacation switch, then the version", () => {
-  const root = openGarden(page(stored2({}), { now: NOW }));
+  const root = openGarden(page(stored3({}), { now: NOW }));
   const panel = openSettings(root);
   assert.deepStrictEqual(panel.children.map((n) => n.className.split(" ").pop()),
     ["kg-panel-h", "kg-prefs", "kg-note", "kg-vac", "kg-ver"]);
@@ -77,7 +77,7 @@ test("in the panel: the sway switch, the butterflies switch, the vacation switch
 });
 
 test("motion switches: on by default, in the order added, above vacation; a tap applies and stores it", () => {
-  const stored = stored2({ placed: FLOWERS, next: 11 });
+  const stored = stored3({ placed: FLOWERS, next: 11 });
   const before = stored[KEY];
   let win = withPrefs(stored);
   let root = openGarden(win);
@@ -110,7 +110,7 @@ test("motion switches: on by default, in the order added, above vacation; a tap 
 
 test("a missing or damaged preference is on", () => {
   for (const bad of [undefined, "{", "null", "[false]", "\"off\"", "7", JSON.stringify({ sway: "no", butterflies: 0 })]) {
-    const stored = stored2({ placed: FLOWERS, next: 11 });
+    const stored = stored3({ placed: FLOWERS, next: 11 });
     if (bad !== undefined) stored[PREFS_KEY] = bad;
     const root = openGarden(withPrefs(stored));
     assert.strictEqual(bugs(root), 2, String(bad));
@@ -121,7 +121,7 @@ test("a missing or damaged preference is on", () => {
 });
 
 test("with reduced motion: the motion switches show off, can't be changed, and say why", () => {
-  const stored = stored2({ placed: FLOWERS, next: 11 });
+  const stored = stored3({ placed: FLOWERS, next: 11 });
   stored[PREFS_KEY] = JSON.stringify({ butterflies: false });
   const win = withPrefs(stored, { reduceMotion: true });
   const root = openGarden(win);
@@ -144,7 +144,7 @@ test("with reduced motion: the motion switches show off, can't be changed, and s
 });
 
 test("a locked save: vacation and the test buttons are disabled, the motion switches still work", () => {
-  const stored = { [KEY]: JSON.stringify({ v: 3, coins: 40, earned: 40 }) };
+  const stored = { [KEY]: JSON.stringify({ v: 4, coins: 40, earned: 40 }) };
   const before = stored[KEY];
   const win = withPrefs(stored);
   const root = openGarden(win, 7, { dev: "1" });
@@ -158,7 +158,7 @@ test("a locked save: vacation and the test buttons are disabled, the motion swit
 });
 
 test("the dev row is gone, from the page and from the style", () => {
-  const win = page(stored2({}), { now: NOW });
+  const win = page(stored3({}), { now: NOW });
   const root = openGarden(win, 7, { dev: "1" });
   assert.strictEqual(byClass(root, "kg-devrow").length, 0);
   const css = win.document.getElementById("kg-style").textContent;
@@ -167,7 +167,7 @@ test("the dev row is gone, from the page and from the style", () => {
 });
 
 test("focus: opening the settings goes to their とじる, closing them goes back to the gear", () => {
-  const win = page(stored2({}), { now: NOW });
+  const win = page(stored3({}), { now: NOW });
   const root = openGarden(win);
   const panel = openSettings(root);
   const shut = panel.all((n) => n.tagName === "button" && n.textContent === "とじる")[0];
@@ -185,7 +185,7 @@ test("focus: opening the settings goes to their とじる, closing them goes bac
 });
 
 test("only the vacation question shows over the settings; a buy question stays under the dimmed layer", () => {
-  const root = openGarden(page(stored2({ coins: 500 }), { now: NOW }));
+  const root = openGarden(page(stored3({ coins: 500 }), { now: NOW }));
   const confirm = byClass(root, "kg-confirm")[0];
   byClass(root, "kg-card")[0].click();                                       // かう？
   assert.ok(shown(confirm) && !confirm.classList.contains("kg-over"));
@@ -197,7 +197,7 @@ test("only the vacation question shows over the settings; a buy question stays u
 });
 
 test("a locked save's note stays under the dimmed layer", () => {
-  const root = openGarden(page({ [KEY]: JSON.stringify({ v: 3 }) }, { now: NOW }));
+  const root = openGarden(page({ [KEY]: JSON.stringify({ v: 4 }) }, { now: NOW }));
   const confirm = byClass(root, "kg-confirm")[0];
   assert.ok(shown(confirm) && /ひらけない/.test(confirm.textContent) && !confirm.classList.contains("kg-over"));
 });

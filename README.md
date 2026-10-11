@@ -2,6 +2,8 @@
 
 A small garden game that lives inside Anki cards. Each card the player answers in AnkiDroid's study screen pays one coin a day; coins buy flowers, vegetables, trees and decorations for a pixel-art garden. Plants grow one stage for each day with reviews (the day they're planted too), wilt after two days without, and die after four; a vacation switch freezes everything.
 
+The garden has three maps, linked by the paths, bridge and stairs at their edges: the player's own garden, and a riverside meadow (¤500) and a waterfall plateau (¤1000) that open for coins. A signpost stands at each exit; tapping it walks to the next map, or asks whether to open it. Each map keeps the plants placed on it, and the garden opens on the map visited last. Coins, the bag (もちもの) and the shop are shared, and plants on every map grow, wilt and die whether they're shown or not.
+
 The UI is in Japanese (kana), written for young learners, or in English with `data-lang="en"` on the card's slot.
 
 ## Setup
@@ -12,7 +14,7 @@ Nothing to build: everything comes in a zip.
 2. Copy its media files into the `collection.media` folder of the Anki profile (on the computer, the folder next to the profile's `collection.anki2`):
    - `_garden.js`
    - `_garden_sprites1.webp` (and any further `_garden_sprites<n>.webp`)
-   - `_garden_bg.webp`
+   - `_garden_bg.webp`, `_garden_bg_riverside.webp` and `_garden_bg_waterfall.webp`, the maps
 
    Their names start with `_`, so Tools → Check Media counts them as used and never deletes them.
 3. Paste the snippet from `template-snippet.html` at the end of the back template of each card type that should pay coins:
@@ -49,6 +51,7 @@ Only in AnkiDroid's new study screen (AnkiDroid 2.23 or later, turned on in Sett
 
 - The coins and the garden are saved in AnkiDroid's localStorage on that phone. They are not synced: studying on another device pays nothing into this garden, and a second phone has a garden of its own.
 - Clearing AnkiDroid's app data, or uninstalling it, deletes the save.
+- The save's format is `v: 3`, which keeps the maps the player has opened, the map they were on last and the map each placed item is on. A `v: 2` save (v1.1.0 and earlier) moves over by itself, with everything on the first map; v1.1.0 and earlier then won't open the garden (see [Updating](#updating)).
 - **Vacation (おやすみ):** a switch in the garden's settings (the gear). While it's on the garden is frozen: plants don't grow, wilt or die, and cards pay no coins (a card answered then still uses up its coin for the day). Shopping, placing, moving and composting still work.
 
 ### Updating
@@ -63,10 +66,10 @@ Replace the media files in `collection.media` with the new zip's and sync; the s
 |---|---|
 | `garden.js` | The game: one plain-JavaScript file, no dependencies |
 | `catalog.js` | Generated item data (names, prices, frames) |
-| `scripts/build_assets.py` | Builds `media/` from `art/`: the sprite atlas, the background and `_garden.js` |
+| `scripts/build_assets.py` | Builds `media/` from `art/`: the sprite atlas, the maps' backgrounds and `_garden.js` |
 | `scripts/release.py` | Builds everything and makes the release zip in `dist/` |
 | `release/` | The zip's `template-snippet.html` and `INSTALL.txt` |
-| `art/` | Source art: the sprite sheet, background, stage-art strips and decorations (strips and decorations in Git LFS) |
+| `art/` | Source art: the sprite sheet, the maps, stage-art strips and decorations (the maps besides home, strips and decorations in Git LFS) |
 | `art/tools/` | Helper pages and scripts for making and checking the art |
 | `tests/` | Node tests with a small fake DOM |
 | `LICENSE` | MIT licence, code and art |
@@ -76,7 +79,7 @@ Replace the media files in `collection.media` with the new zip's and sync; the s
 
 ```sh
 python3 -m pip install -r requirements.txt   # Pillow and NumPy, once
-python3 scripts/build_assets.py        # everything: atlas, background, catalog.js, media/_garden.js
+python3 scripts/build_assets.py        # everything: atlas, backgrounds, catalog.js, media/_garden.js
 python3 scripts/build_assets.py --js   # only media/_garden.js, after editing garden.js
 ```
 

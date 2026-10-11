@@ -8,7 +8,7 @@ coins buy plants and decorations for a pixel-art garden.
    computer (the folder next to the profile's collection.anki2):
      _garden.js
      _garden_sprites1.webp (and any further _garden_sprites<n>.webp)
-     _garden_bg.webp
+     _garden_bg.webp, _garden_bg_riverside.webp, _garden_bg_waterfall.webp (the maps)
    Their names start with "_", so Tools > Check Media counts them as used and never deletes them.
 
 2. Paste the contents of template-snippet.html at the end of the back template of each card type that
@@ -28,6 +28,8 @@ Good to know
   the previewer or the card browser.
 - The garden and its coins are saved on that phone only; they are not synced. Clearing AnkiDroid's app
   data, or uninstalling it, deletes them.
+- The garden has three maps. The other two open for coins: tap the sign on the path at the edge of
+  the map. Each map keeps its own plants; coins and the bag are shared.
 - Away for a while? Turn on おやすみ (Vacation in English) in the garden's settings (the gear): plants then don't
   grow, wilt or die, and cards pay no coins until it's turned off.
 - To update, replace the media files with the new zip's; the garden's save is kept.

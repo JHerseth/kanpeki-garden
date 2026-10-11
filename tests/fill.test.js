@@ -114,7 +114,7 @@ test("without the marker there is no +150", () => {
 });
 
 test("a locked save (from a newer script): +150 is disabled and writes nothing", () => {
-  const stored = { [KEY]: JSON.stringify({ v: 3, coins: 40, earned: 40 }) };
+  const stored = { [KEY]: JSON.stringify({ v: 4, coins: 40, earned: 40 }) };
   const before = stored[KEY];
   const root = openGarden(page(stored, { now: NOW }), undefined, { dev: "1" });
   const b = fill(root);

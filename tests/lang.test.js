@@ -147,7 +147,7 @@ test("data-lang=\"en\": the chip, the toast, an empty tab and the locked note ar
   tab(root, 6).click();
   assert.strictEqual(byClass(root, "kg-empty")[0].textContent, "Nothing here.");
   // a save from a newer script
-  const locked = openGarden(page({ [KEY]: JSON.stringify({ v: 3 }) }, { now: NOW }), undefined, EN);
+  const locked = openGarden(page({ [KEY]: JSON.stringify({ v: 4 }) }, { now: NOW }), undefined, EN);
   assert.strictEqual(confirm(locked).textContent, "The garden can't open right now");
 });
 

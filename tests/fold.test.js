@@ -12,8 +12,8 @@ const NOW = new Date(2026, 9, 12, 10).getTime();
 const PREFS_KEY = "kanpekikun-garden-opts";
 const UPRIGHT = [360, 740], SIDEWAYS = [740, 360];
 const byClass = (root, c) => root.all((n) => n.classList.contains(c));
-const stored2 = (over) => ({ [KEY]: JSON.stringify(Object.assign(
-  { v: 2, coins: 0, earned: 0, seen: {}, inv: {}, placed: [], next: 1, days: {} }, over)) });
+const stored3 = (over) => ({ [KEY]: JSON.stringify(Object.assign(
+  { v: 3, coins: 0, earned: 0, seen: {}, inv: {}, placed: [], next: 1, days: {} }, over)) });
 const saved = (stored) => JSON.parse(stored[KEY]);
 const prefs = (stored) => JSON.parse(stored[PREFS_KEY] || "{}");
 const near = (a, b) => Math.abs(a - b) < 1e-6;
@@ -84,7 +84,7 @@ test("sideways the button shows ▶ open and ◀ folded, as text (never an emoji
 });
 
 test("a tab opens the folded shop on that tab", () => {
-  const stored = stored2({});
+  const stored = stored3({});
   const { root } = open(stored, UPRIGHT);
   btn(root).click();
   tabNamed(root, "やさい").click();
@@ -99,7 +99,7 @@ test("a tab opens the folded shop on that tab", () => {
 });
 
 test("remembered on this phone next to the motion switches, not in the save; the next garden opens folded", () => {
-  const stored = stored2({ coins: 3 });
+  const stored = stored3({ coins: 3 });
   const save0 = stored[KEY];
   let { win, root } = open(stored, UPRIGHT);
   byClass(openSettings(root), "kg-opt")[0].click();         // sway off: stored beside it
@@ -114,7 +114,7 @@ test("remembered on this phone next to the motion switches, not in the save; the
   assert.deepStrictEqual(prefs(stored), { sway: false, shop: true });
   assert.ok(!folded(open(stored, UPRIGHT).root));
   // a locked save doesn't stop it
-  const locked = { [KEY]: JSON.stringify({ v: 3 }) };
+  const locked = { [KEY]: JSON.stringify({ v: 4 }) };
   btn(open(locked, UPRIGHT).root).click();
   assert.strictEqual(prefs(locked).shop, false);
   assert.ok(folded(open(locked, UPRIGHT).root));
@@ -260,7 +260,7 @@ test("a turn refits the map: the whole map stays the whole map", () => {
 });
 
 test("buying folds the shop while placing, at fill height, and opens it again at the whole map; not remembered", () => {
-  const stored = stored2({ coins: 1000 });
+  const stored = stored3({ coins: 1000 });
   const { root } = open(stored, UPRIGHT);
   buy(root);
   assert.ok(folded(root));
@@ -277,7 +277,7 @@ test("buying folds the shop while placing, at fill height, and opens it again at
 });
 
 test("picking from もちもの folds it too, and ✕ opens it again", () => {
-  const { root } = open(stored2({ inv: { rose_pink: 2 } }), UPRIGHT);
+  const { root } = open(stored3({ inv: { rose_pink: 2 } }), UPRIGHT);
   tabNamed(root, "もちもの").click();
   byClass(root, "kg-card")[0].click();
   assert.ok(folded(root));
@@ -289,7 +289,7 @@ test("picking from もちもの folds it too, and ✕ opens it again", () => {
 });
 
 test("sideways, placing folds the strip and opens it again, at the whole map", () => {
-  const { root } = open(stored2({ coins: 1000 }), SIDEWAYS);
+  const { root } = open(stored3({ coins: 1000 }), SIDEWAYS);
   buy(root);
   assert.ok(folded(root));
   assert.ok(near(scale(root), WHOLE_SIDE_FOLDED));
@@ -299,7 +299,7 @@ test("sideways, placing folds the strip and opens it again, at the whole map", (
 });
 
 test("a shop that was folded before stays folded after placing", () => {
-  const stored = stored2({ coins: 1000 });
+  const stored = stored3({ coins: 1000 });
   const { root } = open(stored, UPRIGHT);
   tabNamed(root, "花").click();
   byClass(root, "kg-card")[0].click();               // かう？ and then the player folds the shop: the question stays
@@ -313,7 +313,7 @@ test("a shop that was folded before stays folded after placing", () => {
 });
 
 test("a fold the player makes while placing stays; so does opening it by hand", () => {
-  const stored = stored2({ coins: 1000 });
+  const stored = stored3({ coins: 1000 });
   const { root } = open(stored, UPRIGHT);
   buy(root);
   btn(root).click();                                 // opens it
@@ -335,7 +335,7 @@ test("a fold the player makes while placing stays; so does opening it by hand", 
 
 test("messages while folded: the vacation question, the refund note and the locked note show and work", () => {
   // the vacation question, over the settings
-  let { root } = open(stored2({}), UPRIGHT);
+  let { root } = open(stored3({}), UPRIGHT);
   btn(root).click();
   byClass(openSettings(root), "kg-vac")[0].click();
   assert.ok(!confirm(root).hidden && confirm(root).classList.contains("kg-over"));
@@ -345,12 +345,12 @@ test("messages while folded: the vacation question, the refund note and the lock
   assert.ok(folded(root));
   // the refund note, in a garden that opens folded
   const prefsFolded = { [PREFS_KEY]: JSON.stringify({ shop: false }) };
-  ({ root } = open(Object.assign(stored2({ inv: { tomato_ripe: 1 } }), prefsFolded), SIDEWAYS));
+  ({ root } = open(Object.assign(stored3({ inv: { tomato_ripe: 1 } }), prefsFolded), SIDEWAYS));
   assert.ok(folded(root) && !confirm(root).hidden && /なくなったよ/.test(confirm(root).textContent));
   confirm(root).all((n) => n.textContent === "OK")[0].click();
   assert.ok(confirm(root).hidden);
   // the locked note
-  ({ root } = open(Object.assign({ [KEY]: JSON.stringify({ v: 3 }) }, prefsFolded), UPRIGHT));
+  ({ root } = open(Object.assign({ [KEY]: JSON.stringify({ v: 4 }) }, prefsFolded), UPRIGHT));
   assert.ok(folded(root) && !confirm(root).hidden && /ひらけない/.test(confirm(root).textContent));
 });
 

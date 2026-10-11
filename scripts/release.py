@@ -7,7 +7,7 @@
     1. the full build (scripts/build_assets.py), so a release never ships art older than art/;
     2. the version stamped into media/_garden.js (KG_VERSION, "dev" in a plain build; see stamp), and a syntax check;
     3. the tests;
-    4. the zip, flat: the media the bundle loads (_garden.js, the atlases KG_ATLAS names, _garden_bg.webp),
+    4. the zip, flat: the media the bundle loads (_garden.js, the atlases KG_ATLAS names, every map's background),
        release/template-snippet.html and release/INSTALL.txt, and the repo's LICENSE and ART.md.
 
 Any failure stops it with a non-zero exit (2 for a bad version, and 1 for a missing EXTRAS file, both before
@@ -61,12 +61,17 @@ def run(step, cmd):
 
 
 def media_files():
-    """The media the bundle loads: _garden.js, every atlas in KG_ATLAS (catalog.js), the background."""
+    """The media the bundle loads: _garden.js, every atlas in KG_ATLAS (catalog.js), and every map's background
+    (the bg of each of garden.js's MAPS, home's _garden_bg.webp first)."""
     with open(os.path.join(REPO, "catalog.js"), encoding="utf-8") as f:
         m = re.search(r"^var KG_ATLAS = (.*);$", f.read(), re.M)
     if not m:
         raise Failed("catalog.js has no KG_ATLAS")
-    names = ["_garden.js"] + [a[0] for a in json.loads(m.group(1))] + ["_garden_bg.webp"]
+    with open(os.path.join(REPO, "garden.js"), encoding="utf-8") as f:
+        backgrounds = re.findall(r'\bbg: "(_garden_bg[\w-]*\.webp)"', f.read())
+    if "_garden_bg.webp" not in backgrounds:
+        raise Failed("garden.js's MAPS has no _garden_bg.webp")
+    names = ["_garden.js"] + [a[0] for a in json.loads(m.group(1))] + backgrounds
     missing = [n for n in names if not os.path.isfile(os.path.join(MEDIA, n))]
     if missing:
         raise Failed(f"not built: {', '.join(missing)}")

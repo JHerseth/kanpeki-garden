@@ -141,3 +141,29 @@ print(json.dumps([js, release.stamp(js, "1.2.0")]))`);
   // only the version line differs
   assert.strictEqual(stamped.replace('var KG_VERSION = "1.2.0";', 'var KG_VERSION = "dev";'), dev);
 });
+
+test("the zip's media: _garden.js, the atlases and every map's background garden.js loads; one not built stops it",
+  { skip: noPython }, () => {
+  const out = py(`
+import json, os, shutil, tempfile, release
+REPO = os.getcwd()
+res = []
+with tempfile.TemporaryDirectory() as d:
+    for f in ["catalog.js", "garden.js"]:
+        shutil.copy(os.path.join(REPO, f), d)
+    os.makedirs(os.path.join(d, "media"))
+    names = ["_garden.js", "_garden_sprites1.webp", "_garden_bg.webp", "_garden_bg_riverside.webp", "_garden_bg_waterfall.webp"]
+    for n in names:
+        open(os.path.join(d, "media", n), "w").close()
+    release.REPO, release.MEDIA = d, os.path.join(d, "media")
+    res.append(release.media_files())
+    os.remove(os.path.join(d, "media", "_garden_bg_waterfall.webp"))
+    try:
+        release.media_files()
+    except release.Failed as e:
+        res.append(str(e))
+print(json.dumps(res))`);
+  assert.deepStrictEqual(out[0], ["media/_garden.js", "media/_garden_sprites1.webp", "media/_garden_bg.webp",
+    "media/_garden_bg_riverside.webp", "media/_garden_bg_waterfall.webp"]);
+  assert.strictEqual(out[1], "not built: _garden_bg_waterfall.webp");
+});

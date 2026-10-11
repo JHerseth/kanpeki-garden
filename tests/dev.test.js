@@ -80,7 +80,7 @@ test("without the marker there is no test section and the garden is otherwise th
 });
 
 test("a locked save (from a newer script): the button is disabled and does nothing", () => {
-  const stored = { [KEY]: JSON.stringify({ v: 3, coins: 40, earned: 40 }) };
+  const stored = { [KEY]: JSON.stringify({ v: 4, coins: 40, earned: 40 }) };
   const before = stored[KEY];
   const root = openGarden(page(stored, { now: NOW }), undefined, { dev: "1" });
   const b = dev(root)[0];
@@ -196,7 +196,7 @@ test("without the marker: no day buttons, and a stored offset is never read", ()
 });
 
 test("a locked save: the day buttons are disabled and write nothing", () => {
-  const stored = { [KEY]: JSON.stringify({ v: 3, coins: 40, earned: 40 }) };
+  const stored = { [KEY]: JSON.stringify({ v: 4, coins: 40, earned: 40 }) };
   const before = stored[KEY];
   const root = openGarden(page(stored, { now: NOW }), 7, { dev: "1" });
   for (const t of ["−1日", "+1日"]) {

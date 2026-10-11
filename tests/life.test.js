@@ -240,7 +240,7 @@ test("a v: 1 save migrates: placed plants become mature with today as their last
   const stored = { [OLD_KEY]: JSON.stringify(v1) };
   const g = look(stored, at(MON), undefined, NO_ART);
   const s = saved(stored);
-  assert.strictEqual(s.v, 2);
+  assert.strictEqual(s.v, 3);
   assert.deepStrictEqual([s.coins, s.earned, s.seen, s.inv, s.next], [33, 90, v1.seen, v1.inv, 5]);
   assert.deepStrictEqual(s.placed.map((p) => [p.id, p.k, p.x, p.y, p.t, p.g]), [
     [1, "rose_pink", 500, 600, iso(MON), MATURE], [2, "palm", 900, 700, iso(MON), MATURE],
@@ -271,7 +271,7 @@ test("a v: 1 save with removed items is refunded and migrated", () => {
     placed: [{ id: 1, k: "seed_tray", x: 100, y: 200 }, { id: 2, k: "rose_pink", x: 500, y: 600 }], next: 3 }) };
   const win = page(stored, { now: at(MON) });
   const s = win.KanpekiGarden.load();
-  assert.strictEqual(s.v, 2);
+  assert.strictEqual(s.v, 3);
   assert.strictEqual(s.coins, win.KG_REMOVED.tomato_ripe[2] + win.KG_REMOVED.seed_tray[2]);
   assert.deepStrictEqual(plain(s.placed), [{ id: 2, k: "rose_pink", x: 500, y: 600, t: iso(MON), g: MATURE }]);
   assert.ok(s.refunded, "no note to show");
@@ -321,7 +321,7 @@ test("v: 2 goes under its own key: v: 1's save is moved over once and left as it
   const g = look(stored, at(MON), 1);
   byClass(g.root, "kg-btn").find((n) => n.textContent === "とじる").click();
   assert.strictEqual(stored[OLD_KEY], old);
-  assert.deepStrictEqual([saved(stored).v, saved(stored).coins], [2, 10]);
+  assert.deepStrictEqual([saved(stored).v, saved(stored).coins], [3, 10]);
   // the old script goes on paying into its own save; the new one keeps to the v: 2 save
   stored[OLD_KEY] = JSON.stringify(Object.assign(JSON.parse(old), { coins: 30 }));
   review(stored, at(TUE), 1);
@@ -329,9 +329,9 @@ test("v: 2 goes under its own key: v: 1's save is moved over once and left as it
 });
 
 test("a save from a newer script is never written over: no coins, nothing stored", () => {
-  const v3 = JSON.stringify({ v: 3, coins: 50, things: [1, 2, 3] });
+  const v4 = JSON.stringify({ v: 4, coins: 50, things: [1, 2, 3] });
   const old = JSON.stringify({ v: 1, coins: 9, earned: 9, seen: {}, inv: {}, placed: [], next: 1 });
-  const stored = { [KEY]: v3, [OLD_KEY]: old };
+  const stored = { [KEY]: v4, [OLD_KEY]: old };
   const win = page(stored, { now: at(MON) });
   assert.strictEqual(win.KanpekiGarden.earn("1").gained, false);
   assert.strictEqual(win.KanpekiGarden.save(win.KanpekiGarden.load()), false);
@@ -341,7 +341,7 @@ test("a save from a newer script is never written over: no coins, nothing stored
   assert.ok(!note.hidden && note.textContent === "いまは にわを ひらけないよ");
   byClass(g.root, "kg-tab").find((n) => /もちもの/.test(n.textContent)).click();
   byClass(g.root, "kg-btn").find((n) => n.textContent === "とじる").click();
-  assert.deepStrictEqual(stored, { [KEY]: v3, [OLD_KEY]: old });
+  assert.deepStrictEqual(stored, { [KEY]: v4, [OLD_KEY]: old });
   const chip = look(stored, at(WED), 3).win.document.body.all((n) => n.classList.contains("kg-chip"))[0];
   assert.ok(!chip.all((n) => n.classList.contains("kg-plus")).length, "+1 on the chip");
 });
@@ -352,7 +352,7 @@ test("a v: 2 save under the old key (from a test build) is moved over too", () =
   const stored = { [OLD_KEY]: old };
   assert.strictEqual(frameOf(look(stored, at(WED)), 1), YOUNG);                 // Monday grew it, Tuesday didn't
   assert.strictEqual(stored[OLD_KEY], old);
-  assert.deepStrictEqual([saved(stored).v, saved(stored).coins, saved(stored).placed[0].t], [2, 12, iso(MON)]);
+  assert.deepStrictEqual([saved(stored).v, saved(stored).coins, saved(stored).placed[0].t], [3, 12, iso(MON)]);
 });
 
 test("a dead plant stays dead when the clock goes back", () => {

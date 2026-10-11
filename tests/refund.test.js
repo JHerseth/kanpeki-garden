@@ -48,7 +48,7 @@ test("owned removed items are refunded at full price and taken away, once", () =
   assert.strictEqual(s.earned, 40);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(s.inv)), { rose_pink: 3 });
   assert.deepStrictEqual(JSON.parse(JSON.stringify(s.placed.map((p) => p.k))), ["rose_pink"]);
-  assert.strictEqual(s.v, 2);                                // and moved on to v: 2 (the life cycle's save)
+  assert.strictEqual(s.v, 3);                                // and moved on to v: 3 (by way of v: 2, the life cycle's save)
   // saved, and loading again pays nothing more
   const again = page(stored).KanpekiGarden.load();
   assert.strictEqual(again.coins, s.coins);

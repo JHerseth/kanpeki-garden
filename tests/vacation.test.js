@@ -391,8 +391,8 @@ test("a damaged vac stays on, from today", () => {
 });
 
 test("a locked save (from a newer script) disables the switch and writes nothing", () => {
-  const v3 = JSON.stringify({ v: 3, coins: 50, vac: null, things: [1, 2, 3] });
-  const stored = { [KEY]: v3 };
+  const v4 = JSON.stringify({ v: 4, coins: 50, vac: null, things: [1, 2, 3] });
+  const stored = { [KEY]: v4 };
   const g = look(stored, at(MON), 1);
   const sw = byClass(openSettings(g.root), "kg-vac")[0];
   assert.strictEqual(sw.disabled, true);
@@ -400,5 +400,5 @@ test("a locked save (from a newer script) disables the switch and writes nothing
   sw.click();
   g.root.all((n) => n.tagName === "button" && n.textContent === "はい").forEach((b) => b.click());
   byClass(g.root, "kg-close")[0].click();
-  assert.deepStrictEqual(stored, { [KEY]: v3 });
+  assert.deepStrictEqual(stored, { [KEY]: v4 });
 });

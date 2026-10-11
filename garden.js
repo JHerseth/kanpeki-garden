@@ -27,6 +27,16 @@
  * and each plant's stage is worked out from them whenever the garden loads (lifeOf).
  * Plants can be moved but not put back in もちもの; decorations can.
  *
+ * Maps (MAPS): the home map, 「わたしのにわ」, and two more the player unlocks with coins, 「かわべの はらっぱ」 (¤500) and
+ * 「たきの たかだい」 (¤1000). They are linked by the paths, bridges and stairs at their edges: at each exit a signpost
+ * (KG_SIGN, its arrow mirrored where it should point left) stands on the map with a label over it at screen size,
+ * the next map's name, or 「¤500 で ひらく」 while that map is locked. A tap on either walks there, or asks in the hint
+ * whether to unlock it (unlocking spends coins but leaves earned as it is, and walks there). A walk fades the view
+ * over to the next map, centred on the sign the player arrives at; a map's picture loads the first time the player
+ * walks there, and the garden opens on the map visited last. Placed items belong to the map they were placed on, and
+ * placing, moving, putting away, composting, compost all and the butterflies only see the map shown; coins, もちもの,
+ * the shop and vacation are shared, and the life cycle runs on every map, shown or not.
+ *
  * Settings: the gear in the garden's top bar opens a panel with this phone's motion preferences
  * (prefSwitch), the vacation switch, on a dev slot the test section, and at the bottom the build's version
  * (KG_VERSION), in small quiet text, to tell builds apart when someone reports a problem.
@@ -53,7 +63,7 @@
  */
 (function () {
   "use strict";
-  var KEY = "kanpekikun-garden-2";          // the save, v: 2
+  var KEY = "kanpekikun-garden-2";          // the save, v: 3 (the key is v: 2's: an older script finds it and locks)
   // v: 1's save: moved over once and then left alone, so an old copy of this script (cached, or put
   // back) still finds its own save instead of starting fresh over the new one
   var OLD_KEY = "kanpekikun-garden";
@@ -68,9 +78,39 @@
   // the build's version, shown at the bottom of the settings: "dev" unless a release stamped one in
   var VERSION = typeof KG_VERSION === "string" && KG_VERSION ? KG_VERSION : "dev";
   var BASE = window.KG_BASE || "";          // media folder; Anki serves media next to the card
-  var BG = BASE + "_garden_bg.webp";
   var WORLD_W = 2000, WORLD_H = 1116;
-  var POND = [1655, 685, 270, 180];         // the background's pond, round its stones: centre x, y and radii x, y
+  var POND = [1655, 685, 270, 180];         // the home map's pond, round its stones: centre x, y and radii x, y
+  /* The maps, in the order the top bar's dots show them; their names are T.maps, in the same order. Each has:
+   *   key: its name in the save (s.maps, s.at, a placed item's m); home is the one every garden starts with, free.
+   *   bg: its picture in the media folder, WORLD_W x WORLD_H like every map (scripts/build_assets.py makes it).
+   *   price: the coins that unlock it.
+   *   water: its water as ellipses [centre x, y, radii x, y], which 「+150」 keeps out of (the player isn't kept out).
+   *   exits: [x, y, to, left] per exit at its edge: the foot of the signpost on the path, bridge or stairs there, the
+   *     map it leads to, and left: true where the sign's arrow points left (back towards home; it points right, on
+   *     towards the next map, otherwise). Every exit has one back on the map it leads to. */
+  var MAPS = [
+    { key: "home", bg: "_garden_bg.webp", price: 0, water: [POND],
+      exits: [[965, 1085, "riverside", false]] },                   // the stepping stones, out at the bottom
+    { key: "riverside", bg: "_garden_bg_riverside.webp", price: 500,
+      // the stream, from the bushes on the left, under the bridge, to the falls on the right
+      water: [[230, 860, 90, 70], [370, 950, 100, 70], [560, 1000, 130, 50], [760, 1005, 110, 45], [1120, 1025, 130, 45],
+        [1340, 1000, 110, 55], [1580, 945, 160, 60], [1800, 900, 90, 60], [1880, 830, 60, 80]],
+      exits: [[950, 1045, "home", true],                            // the bridge at the bottom
+        [1592, 300, "waterfall", false]] },                         // the stairs up the cliff, top right
+    { key: "waterfall", bg: "_garden_bg_waterfall.webp", price: 1000,
+      water: [[1770, 535, 185, 110], [1845, 130, 50, 150], [1855, 330, 45, 100]],   // the pool, and the falls into it
+      exits: [[970, 1060, "riverside", true]] }                     // the stairs down, at the bottom; top left: a later map
+  ];
+  var MAP = {};
+  MAPS.forEach(function (m, i) { m.n = i; MAP[m.key] = m; });
+  /** Map `key`'s entry in MAPS, or null for anything that isn't a map's key ("toString" too). */
+  function mapOf(key) { return typeof key === "string" && Object.prototype.hasOwnProperty.call(MAP, key) ? MAP[key] : null; }
+  /** Whether garden spot x, y is in map m's water. */
+  function wet(m, x, y) {
+    return m.water.some(function (w) { return Math.pow((x - w[0]) / w[2], 2) + Math.pow((y - w[1]) / w[3], 2) < 1; });
+  }
+  // the signpost at each exit: a frame like an item's (catalog.js's KG_SIGN), not sold in the shop
+  var SIGN = { a: KG_SIGN[0], x: KG_SIGN[1], y: KG_SIGN[2], w: KG_SIGN[3], h: KG_SIGN[4], ax: KG_SIGN[5], ay: KG_SIGN[6] };
   var TABS = ["もちもの", "花", "はちうえ", "やさい", "草木", "木", "かざり"];
   var ITEMS = {};
   KG_CATALOG.forEach(function (e) {
@@ -97,7 +137,7 @@
       toast: function (n) { return "¤ +1（" + n + "）"; },
       // the top bar and the map
       garden: "にわ",
-      title: "わたしのにわ",
+      maps: ["わたしのにわ", "かわべの はらっぱ", "たきの たかだい"],      // MAPS' names, in its order
       settings: "せってい",
       close: "とじる",
       zoomIn: "おおきく",
@@ -113,6 +153,11 @@
       drag: "ゆびで うごかせるよ",
       putAway: "しまう",
       ok: "OK",
+      // the signs at the exits: the label to an open map is its name; to a locked one, its price
+      goTo: function (name) { return name + " へ いく"; },
+      unlockSign: function (price) { return "¤" + price + " で ひらく"; },
+      unlockLabel: function (name, price) { return name + " を " + price + " コインで ひらく"; },
+      unlockAsk: function (name, price) { return name + " を ¤" + price + " で ひらく？"; },
       // the shop
       emptyBag: "まだ なにも もっていないよ。おみせで かってね。",
       emptyTab: "ここには なにも ないよ。",
@@ -152,7 +197,7 @@
       resting: "On vacation",
       toast: function (n) { return "¤ +1 (" + n + ")"; },
       garden: "Garden",
-      title: "My garden",
+      maps: ["My garden", "Riverside meadow", "Waterfall plateau"],
       settings: "Settings",
       close: "Close",
       zoomIn: "Zoom in",
@@ -166,6 +211,10 @@
       drag: "Drag it to move it",
       putAway: "Put away",
       ok: "OK",
+      goTo: function (name) { return "Go to " + name; },
+      unlockSign: function (price) { return "Open for ¤" + price; },
+      unlockLabel: function (name, price) { return "Open " + name + " for " + price + " coins"; },
+      unlockAsk: function (name, price) { return "Open " + name + " for ¤" + price + "?"; },
       emptyBag: "Your bag is empty. Buy something in the shop!",
       emptyTab: "Nothing here.",
       buyAsk: function (price, left) { return "Buy for ¤" + price + "? You'll have " + left + " left."; },
@@ -210,9 +259,10 @@
   function signed(n) { return (n > 0 ? "+" : "−") + Math.abs(n); }
 
   // ---- state -------------------------------------------------------------------------------
-  /* Save, v: 2:
+  /* Save, v: 3:
    *   coins, earned; seen {cardId: day it last paid}; inv {key: count}; next: the next placed id;
-   *   placed [{id, k, x, y, t?, g?, dead?}]: t is the day a plant joined the life cycle (placed, or
+   *   placed [{id, k, x, y, m?, t?, g?, dead?}]: m is the map it was placed on (MAPS' key; left out for home);
+   *     t is the day a plant joined the life cycle (placed, or
    *     enrolled), g the stage it joined at (0 if left out), dead the day it was first found dead, so it
    *     stays dead even if the phone's clock goes back. No t: outside the life cycle (decorations, and
    *     plants without stage art, which stay at their one frame until their strip comes; see enrol).
@@ -220,12 +270,16 @@
    *     day vacation was on at some point. VACATION is written when it is switched off, for every day
    *     from vac through that day, so days alone tell the walk which days were frozen;
    *   vac: while vacation is on, the day it was switched on. Left out while it's off.
-   * Days are YYYY-MM-DD, starting at 04:00 (today()). v: 1 had no t, g, days or vac. */
+   *   maps: the maps the player has unlocked besides home, in the order unlocked; left out while there are none.
+   *   at: the map the player was on last, where the garden opens; left out for home.
+   * Days are YYYY-MM-DD, starting at 04:00 (today()). v: 1 had no t, g, days or vac; v: 2 no maps, at or m, so it
+   * moves over as it is, with everything on home. */
   var REVIEWED = 1, VACATION = 2;
   var DYING = 2, DEAD = 4;                  // finished days in a row without reviews
-  function fresh() { return { v: 2, coins: 0, earned: 0, seen: {}, inv: {}, placed: [], next: 1, days: {} }; }
-  /** The save; the old key's is moved over the first time (v: 1, or v: 2 from a test build). A save from
-   *  a newer script (any v but 2) is never written over: this one then gives a locked, empty garden that
+  function fresh() { return { v: 3, coins: 0, earned: 0, seen: {}, inv: {}, placed: [], next: 1, days: {} }; }
+  /** The save; the old key's is moved over the first time (v: 1, or v: 2 from a test build), and a v: 2 save
+   *  becomes v: 3 as it is (an older script, which wants v: 2, then locks it as below). A save from a newer
+   *  script (any v but 2 or 3) is never written over: this one then gives a locked, empty garden that
    *  save() won't store and earn() won't pay into, and the garden only says it can't open. */
   function load() {
     try {
@@ -233,13 +287,15 @@
       if (raw == null) {
         s = JSON.parse(localStorage.getItem(OLD_KEY));
         if (!s || (s.v !== 1 && s.v !== 2)) return fresh();
-        s.v = 2;
+        s.v = 3;
         changed = true;
       } else {
         s = JSON.parse(raw);
         if (!s || typeof s !== "object") return fresh();
-        if (s.v !== 2) return locked();
+        if (s.v === 2) { s.v = 3; changed = true; }
+        else if (s.v !== 3) return locked();
       }
+      if (tidyMaps(s)) changed = true;
       if (refundRemoved(s)) changed = true;
       if (!s.days || typeof s.days !== "object" || Array.isArray(s.days)) { s.days = {}; changed = true; }
       if (s.vac != null && !isDay(s.vac)) { s.vac = today(); changed = true; }    // damaged: still on, from today
@@ -258,6 +314,34 @@
   function save(s) {
     if (s.locked) return false;
     try { localStorage.setItem(KEY, JSON.stringify(s)); return true; } catch (e) { return false; }
+  }
+
+  /** Whether map `key` is open in save s: home, or one the player unlocked. */
+  function opened(s, key) { return key === "home" || Array.isArray(s.maps) && s.maps.indexOf(key) >= 0; }
+  /** The key of the map the player is on in save s. */
+  function mapAt(s) { return s.at || "home"; }
+  /** The key of the map placed item p is on. */
+  function onMapOf(p) { return p.m || "home"; }
+  /** Keep the save's maps to what a v: 3 save holds, after damage: maps, known maps but home, each once (left out
+   *  when none); at, an open map (left out for home); a placed item's m, an open map (left out for home). Anything
+   *  else falls back to home, or is dropped. Whether it changed anything. */
+  function tidyMaps(s) {
+    var changed = false;
+    if ("maps" in s) {
+      var keep = Array.isArray(s.maps) ? s.maps.filter(function (k, i) {
+        return mapOf(k) && k !== "home" && s.maps.indexOf(k) === i;
+      }) : [];
+      if (!keep.length) { delete s.maps; changed = true; }
+      else if (keep.length !== s.maps.length) { s.maps = keep; changed = true; }
+    }
+    function home(o, f) {
+      if (!(f in o) || o[f] !== "home" && mapOf(o[f]) && opened(s, o[f])) return;
+      delete o[f];
+      changed = true;
+    }
+    home(s, "at");
+    if (Array.isArray(s.placed)) s.placed.forEach(function (p) { if (p && typeof p === "object") home(p, "m"); });
+    return changed;
   }
 
   /** Pay back items no longer sold (KG_REMOVED), placed or in もちもの, and take them away.
@@ -411,6 +495,9 @@
     h = Math.imul(h ^ h >>> 15, 0x846ca68b);
     return ((h ^ h >>> 16) >>> 0) / 4294967296;
   }
+
+  // A sign's label: LABEL_GAP px above its signpost (room for its tail), and LABEL_EDGE px in from the view's sides
+  var LABEL_GAP = 6, LABEL_EDGE = 4;
 
   // Butterflies: one for every BUGS_PER living flowers, at most BUGS_MAX
   var BUGS_PER = 5, BUGS_MAX = 6;
@@ -646,7 +733,10 @@
 
     // top bar
     var top = el("div", "kg-top");
-    var title = el("div", "kg-title", T.title);
+    // the title: the map's name, and a dot per map (showTop)
+    var title = el("div", "kg-title"), mapName = el("span", "kg-map-name"), mapDots = el("span", "kg-dots");
+    mapDots.setAttribute("aria-hidden", "true");
+    title.append(mapName, mapDots);
     var purse = el("div", "kg-purse");
     ui.coins = el("span", "kg-purse-n");
     purse.append(coinIcon(), ui.coins);
@@ -702,11 +792,8 @@
     var world = el("div", "kg-world");
     world.style.width = WORLD_W + "px";
     world.style.height = WORLD_H + "px";
-    var bg = el("img", "kg-bg");
-    bg.src = BG;
-    bg.alt = "";
-    bg.draggable = false;
-    world.append(bg);
+    var ground = el("div", "kg-ground");     // the maps' pictures, under everything on them (showMap)
+    world.append(ground);
     view.append(world);
     ui.hint = el("div", "kg-hint");
     ui.hint.hidden = true;
@@ -744,7 +831,12 @@
     var placing = null;       // item key being placed
     var selected = null;      // placed id
     var composting = false;   // the hint asks to compost every dead plant (compost all), all of them outlined
-    var nodes = {};           // placed id -> div
+    var here = mapAt(s);      // the map shown
+    var asking = null;        // the map whose locked sign the hint asks about (to unlock it, or how many coins short)
+    var signs = [];           // the shown map's exits: {e: its exit in MAPS, post: its signpost, label: its label}
+    var bgs = {};             // map key -> its picture, once the player has been there
+    var veil = null;          // the walk's fade over the view, while it lasts
+    var nodes = {};           // placed id -> div, on the map shown
     var lives = {};           // placed id -> lifeOf, worked out once per opening
     var hist = history(s);
 
@@ -768,6 +860,8 @@
       for (var k in KG_REMOVED) if (KG_REMOVED[k][0] === name) return T.name(name, KG_REMOVED[k][1]);
       return name;
     }
+    /** The placed items on the map shown. */
+    function onHere() { return s.placed.filter(function (p) { return onMapOf(p) === here; }); }
     function life(p) { return p.id in lives ? lives[p.id] : (lives[p.id] = lifeOf(s, p, hist)); }
     function dead(p) { var l = life(p); return !!(l && l.dead); }
 
@@ -778,6 +872,8 @@
       cam.x = ww <= vw ? (vw - ww) / 2 : Math.min(0, Math.max(vw - ww, cam.x));
       cam.y = wh <= vh ? (vh - wh) / 2 : Math.min(0, Math.max(vh - wh, cam.y));
       world.style.transform = "translate(" + cam.x + "px," + cam.y + "px) scale(" + cam.s + ")";
+      world.style.setProperty("--kg-s", String(cam.s));     // the signposts' hit area, a fixed size on the screen
+      placeSigns();
     }
     function zoomAt(f, px, py) {
       var ns = Math.max(cam.fit, Math.min(cam.fit * 6, cam.s * f));
@@ -800,7 +896,7 @@
     // placed items: a .kg-item (its spot, depth, selection and pop) around its picture (frame, shadow and sway)
     function drawPlaced(p) {
       var item = ITEMS[p.k];
-      if (!item) return;
+      if (!item || onMapOf(p) !== here) return;
       var f = stageFrame(item, life(p));
       // keep it on the map: a picture can be bigger than the sprite it was placed with (saved when the garden opens)
       var at = onMap(item, p.x, p.y);
@@ -824,7 +920,7 @@
     function setSway(on) {
       if (swayOn === !!on) return;
       swayOn = !!on;
-      s.placed.forEach(drawPlaced);
+      onHere().forEach(drawPlaced);
     }
     /** How placed item p sways now (swayOf), or null: still while selected or dragged, so it's easy to place. */
     function swaying(p) {
@@ -868,7 +964,7 @@
      *  send off any that sit on, or fly to, a flower that is gone or no longer living. New ones come in just
      *  inside the side of the map, or with edge false (the garden opening, the switch turned on) are already about. */
     function flutter(edge) {
-      var fl = bugsOn && !isDay(s.vac) ? blooms(s.placed, life) : [], n = butterflies(fl.length);
+      var fl = bugsOn && !isDay(s.vac) ? blooms(onHere(), life) : [], n = butterflies(fl.length);
       while (bugs.length > n) bugs.pop().el.remove();
       while (bugs.length < n) bugs.push(newBug(edge));
       bugs.forEach(function (b) { if (b.to && fl.indexOf(b.to) < 0) takeOff(b); });
@@ -915,7 +1011,7 @@
     /** A living flower for butterfly b to fly to, or null: never the selected one (it's about to be moved), and
      *  one no other butterfly is on or flying to, while there is such a one. */
     function pick(b) {
-      var fl = blooms(s.placed, life).filter(function (p) { return p.id !== selected; });
+      var fl = blooms(onHere(), life).filter(function (p) { return p.id !== selected; });
       var free = fl.filter(function (p) { return !bugs.some(function (o) { return o !== b && o.to === p; }); });
       if (free.length) fl = free;
       return fl.length ? fl[Math.floor(Math.random() * fl.length)] : null;
@@ -973,6 +1069,7 @@
     function find(id) { for (var i = 0; i < s.placed.length; i++) if (s.placed[i].id === id) return s.placed[i]; return null; }
     function select(id) {
       var prev = selected;
+      asking = null;               // a tap on the map, or on an item, leaves a sign's question
       selected = id;
       if (id != null) scare(id);   // no butterfly on the flower the player is about to move (pick leaves it out too)
       if (composting) askAll(false, true);
@@ -982,7 +1079,28 @@
     }
     function showHint() {
       ui.hint.textContent = "";
-      if (placing) {
+      if (asking) {
+        // a locked map's sign: unlock it for its price (and walk there), or, with too few coins, the shop's message
+        var to = MAP[asking], q = el("span");
+        if (s.coins >= to.price) {
+          q.append.apply(q, coined(T.unlockAsk(T.maps[to.n], to.price)));
+          var open = el("button", "kg-btn kg-btn-go", T.yes);
+          open.type = "button";
+          open.addEventListener("click", function () { unlock(to.key); });
+          var shut = el("button", "kg-btn kg-x", "✕");
+          shut.type = "button";
+          shut.setAttribute("aria-label", T.cancel);
+          shut.addEventListener("click", function () { asking = null; showHint(); });
+          ui.hint.append(q, open, shut);
+        } else {
+          q.textContent = T.tooFew(to.price - s.coins);
+          var okay = el("button", "kg-btn", T.ok);
+          okay.type = "button";
+          okay.addEventListener("click", function () { asking = null; showHint(); });
+          ui.hint.append(q, okay);
+        }
+        ui.hint.hidden = false;
+      } else if (placing) {
         var it = ITEMS[placing];
         ui.hint.append(thumb(it, 26), el("span", null, T.tapToPlace));
         var cancel = el("button", "kg-btn kg-x", "✕");
@@ -997,7 +1115,7 @@
           // a dead plant can't move: it can only go to the compost, for a quarter of its price. With 2 or more
           // dead, 「ぜんぶ ×n」 beside 「はい」 asks to compost them all (askAll), each for a quarter of its own
           // price, summed; ✕ there comes back to this plant's question. Dying plants, which can still recover, stay
-          var gone = s.placed.filter(dead), back = Math.floor(item.price / 4), all = 0;
+          var gone = onHere().filter(dead), back = Math.floor(item.price / 4), all = 0;
           gone.forEach(function (q) { all += Math.floor(ITEMS[q.k].price / 4); });
           var ask = el("span");
           ask.append.apply(ask, coined(composting ? T.compostAllAsk(gone.length, all) : T.compost(back)));
@@ -1036,13 +1154,14 @@
         ui.hint.hidden = true;
       }
       ui.hint.classList.toggle("kg-hint-all", composting && !ui.hint.hidden);
+      ui.hint.classList.toggle("kg-hint-long", !!asking && !ui.hint.hidden);
     }
     /** Ask to compost every dead plant (on), outlining them all, or leave the question (off) for the selected
      *  plant's own; quiet: only the outlines, for select, which calls it after selected has already changed (so
      *  the newly selected plant keeps its outline) and then shows its own hint. */
     function askAll(on, quiet) {
       composting = on;
-      s.placed.forEach(function (p) { if (dead(p) && p.id !== selected) drawPlaced(p); });
+      onHere().forEach(function (p) { if (dead(p) && p.id !== selected) drawPlaced(p); });
       if (!quiet) showHint();
     }
     /** Take placed items ps off the map, with one save and one redraw of the hint, the shop and the butterflies;
@@ -1062,11 +1181,133 @@
       renderGrid();
       flutter(true);
     }
+    // maps: the one shown (here), its exits' signs, walking to another, and unlocking one
+    /** Show map `here`: its picture (loaded the first time it's shown), its placed items, its signs, and its name and
+     *  dots in the top bar; the items and signs of the map shown before go. */
+    function showMap() {
+      var m = MAP[here];
+      if (!bgs[here]) {
+        var bg = el("img", "kg-bg");
+        bg.src = BASE + m.bg;
+        bg.alt = "";
+        bg.draggable = false;
+        bg.dataset.map = here;
+        ground.append(bg);
+        bgs[here] = bg;
+      }
+      for (var k in bgs) bgs[k].hidden = k !== here;
+      for (var id in nodes) nodes[id].remove();
+      nodes = {};
+      onHere().forEach(drawPlaced);
+      signs.forEach(function (g) { g.post.remove(); g.label.remove(); });
+      signs = m.exits.map(signFor);
+      placeSigns();
+      showTop();
+    }
+    /** The top bar's title: the map's name, and a dot per map in MAPS' order, filled for this one, hollow for another
+     *  open one, a lock for one still locked. */
+    function showTop() {
+      mapName.textContent = T.maps[MAP[here].n];
+      mapDots.textContent = "";
+      MAPS.forEach(function (m) {
+        mapDots.append(el("span", "kg-dot " + (m.key === here ? "kg-dot-here" : opened(s, m.key) ? "kg-dot-open" : "kg-dot-lock")));
+      });
+    }
+    /** Exit e's sign: its signpost on the map, at its foot, in depth order with the items (mirrored when its arrow
+     *  points left), and its label over the map (placeSigns): the map's name, or its price while it's locked. */
+    function signFor(e) {
+      var to = MAP[e[2]], name = T.maps[to.n];
+      var post = el("div", "kg-post"), pic = sprite(SIGN, KG_SCALE);
+      post.style.left = e[0] - SIGN.ax * KG_SCALE + "px";
+      post.style.top = e[1] - SIGN.ay * KG_SCALE + "px";
+      post.style.zIndex = String(e[1]);
+      post.dataset.to = to.key;
+      if (e[3]) {
+        pic.style.transformOrigin = SIGN.ax * KG_SCALE + "px 0";
+        pic.style.transform = "scaleX(-1)";
+      }
+      post.append(pic);
+      world.append(post);
+      var label = el("button", "kg-btn kg-exit");
+      label.type = "button";
+      label.dataset.to = to.key;
+      label.disabled = !!s.locked;
+      if (opened(s, to.key)) {
+        label.textContent = name;
+        label.setAttribute("aria-label", T.goTo(name));
+      } else {
+        label.append.apply(label, coined(T.unlockSign(to.price)));
+        label.setAttribute("aria-label", T.unlockLabel(name, to.price));
+        label.classList.add("kg-exit-shut");
+      }
+      label.addEventListener("click", function () { toSign(to.key); });
+      view.append(label);
+      return { e: e, post: post, label: label };
+    }
+    /** Put each sign's label over its signpost, at screen size whatever the zoom: centred over the post, LABEL_GAP px
+     *  above its top. While the post's foot is in the view, the label moves in to stay whole in it. */
+    function placeSigns() {
+      var vw = view.clientWidth, vh = view.clientHeight;
+      signs.forEach(function (g) {
+        var b = g.label, w = b.offsetWidth || 0, h = b.offsetHeight || 0;
+        var fx = cam.x + g.e[0] * cam.s, fy = cam.y + g.e[1] * cam.s;
+        var x = fx - w / 2, y = cam.y + (g.e[1] - SIGN.ay * KG_SCALE) * cam.s - LABEL_GAP - h;
+        if (fx >= 0 && fx <= vw && fy >= 0 && fy <= vh) {
+          x = Math.max(LABEL_EDGE, Math.min(vw - w - LABEL_EDGE, x));
+          y = Math.max(LABEL_EDGE, Math.min(vh - h - LABEL_EDGE, y));
+        }
+        b.style.left = x + "px";
+        b.style.top = y + "px";
+      });
+    }
+    /** A tap on the sign to map `key`: walk there if it's open; if it's locked, ask in the hint (showHint). */
+    function toSign(key) {
+      if (s.locked) return;
+      if (opened(s, key)) { walk(key); return; }
+      select(null);
+      asking = key;
+      showHint();
+    }
+    /** Unlock map `key` for its price, and walk there. earned stays as it is: it counts coins paid, not spent. */
+    function unlock(key) {
+      var m = MAP[key];
+      if (s.locked || opened(s, key) || s.coins < m.price) return;
+      s.coins -= m.price;
+      (s.maps = s.maps || []).push(key);
+      asking = null;
+      renderGrid();           // prices the player can no longer pay go grey
+      walk(key);
+    }
+    /** Walk to map `key`: nothing stays selected and no question is left (placing goes on, onto the new map), the
+     *  view fades over to it (a veil that its animation takes away), centred on the sign that leads back, at the same
+     *  zoom, and its own butterflies come for its flowers. */
+    function walk(key) {
+      var from = here;
+      select(null);
+      here = key;
+      if (key === "home") delete s.at; else s.at = key;
+      persist();
+      showMap();
+      while (bugs.length) bugs.pop().el.remove();
+      flutter(false);
+      var back = MAP[key].exits.filter(function (e) { return e[2] === from; })[0];
+      if (back) {
+        cam.x = view.clientWidth / 2 - back[0] * cam.s;
+        cam.y = view.clientHeight / 2 - back[1] * cam.s;
+      }
+      clamp();
+      if (veil) veil.remove();
+      var v = veil = el("div", "kg-veil");
+      v.addEventListener("animationend", function () { v.remove(); if (veil === v) veil = null; });
+      view.append(v);
+      showHint();
+    }
     function place(key, w) {
       var item = ITEMS[key], f = item.frames[0];
       // the tap is the middle of the picture it starts with
       var at = onMap(item, w.x, w.y + (f.ay - f.h / 2) * KG_SCALE);
       var p = { id: s.next++, k: key, x: at.x, y: at.y };
+      if (here !== "home") p.m = here;
       if (item.frames.length > 1) p.t = today();      // a plant with stage art starts at its first frame
       s.placed.push(p);
       s.inv[key] -= 1;
@@ -1297,7 +1538,7 @@
       renderGrid();           // prices the player can now pay lose their grey
     });
     // 「+150」: 150 plants at once, for a performance test: picked at random from every plant with a life cycle but
-    // the hanging ones (whose anchor is below the hook: ay > h), at random spots on the map out of the pond. Each
+    // the hanging ones (whose anchor is below the hook: ay > h), at random spots on the map shown out of its water. Each
     // joins the life cycle today at its mature stage, as enrol has a plant join; nothing is paid or taken from もちもの
     if (dev) fillBtn.addEventListener("click", function () {
       if (s.locked) return;
@@ -1308,8 +1549,11 @@
       for (var n = 0; n < 150; n++) {
         var item = kinds[Math.floor(Math.random() * kinds.length)], at;
         do at = onMap(item, Math.random() * WORLD_W, Math.random() * WORLD_H);
-        while (Math.pow((at.x - POND[0]) / POND[2], 2) + Math.pow((at.y - POND[1]) / POND[3], 2) < 1);
-        var p = { id: s.next++, k: item.key, x: at.x, y: at.y, t: day, g: item.frames.length - 3 };
+        while (wet(MAP[here], at.x, at.y));
+        var p = { id: s.next++, k: item.key, x: at.x, y: at.y };
+        if (here !== "home") p.m = here;
+        p.t = day;
+        p.g = item.frames.length - 3;
         s.placed.push(p);
         drawPlaced(p);
       }
@@ -1332,7 +1576,7 @@
       hist = history(s);
       lives = {};
       composting = false;     // which plants are dead may change: back to the selected plant's own question
-      s.placed.forEach(drawPlaced);
+      onHere().forEach(drawPlaced);
       persist();
       showVacation();
       showHint();
@@ -1376,7 +1620,7 @@
     function count() { return Object.keys(pts).length; }
     function pair() { var k = Object.keys(pts); return [pts[k[0]], pts[k[1]]]; }
     view.addEventListener("pointerdown", function (e) {
-      if (e.target.closest(".kg-hint button, .kg-zoom")) return;
+      if (e.target.closest(".kg-hint button, .kg-zoom, .kg-exit")) return;
       view.setPointerCapture(e.pointerId);
       pts[e.pointerId] = { x: e.clientX, y: e.clientY };
       if (count() === 2) {
@@ -1386,8 +1630,9 @@
       }
       var hit = e.target.closest(".kg-item");
       var id = hit ? Number(hit.dataset.id) : null;
+      var post = hit ? null : e.target.closest(".kg-post");     // a signpost, or its hit area round it
       gesture = { type: id != null && id === selected && !placing && !dead(find(id)) ? "drag" : "pan",
-        sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y, id: id, moved: false };
+        sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y, id: id, moved: false, post: post && post.dataset.to };
       if (gesture.type === "drag") {
         var w0 = toWorld(e.clientX, e.clientY), p0 = find(id);
         gesture.dx = p0.x - w0.x;
@@ -1424,7 +1669,8 @@
       if (gesture.type === "pinch") { if (!count()) gesture = null; return; }
       if (gesture.type === "drag" && gesture.moved) persist();
       if (!gesture.moved && e.type === "pointerup") {
-        if (placing) place(placing, toWorld(e.clientX, e.clientY));
+        if (placing) place(placing, toWorld(e.clientX, e.clientY));     // also on a signpost: it's on the path
+        else if (gesture.post) toSign(gesture.post);
         else if (gesture.id != null) select(gesture.id === selected ? null : gesture.id);
         else select(null);
       }
@@ -1464,7 +1710,7 @@
     var watch = new MutationObserver(function () { if (!slot.isConnected) shut(); });
     watch.observe(document.body, { childList: true, subtree: true });
 
-    s.placed.forEach(drawPlaced);
+    showMap();
     showVacation();
     if (s.locked) {           // a save from a newer script (see load): say so instead of an empty garden
       confirmBox().append(el("div", "kg-ctext", T.locked));
@@ -1531,10 +1777,22 @@
     ".kg-root [hidden]{display:none!important}",
     ".kg-top{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--kg-wood);",
     "border-bottom:3px solid var(--kg-wood-dark);color:var(--kg-paper)}",
-    ".kg-title{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:18px;font-weight:700;",
+    // the title: the map's name and a dot per map (showTop): filled for this map, hollow for another open one, a lock for
+    // one still locked
+    ".kg-title{flex:1;min-width:0;display:flex;align-items:center;gap:10px}",
+    ".kg-map-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:18px;font-weight:700;",
     "letter-spacing:.05em}",
-    // a narrow phone has no room for the title next to the purse, the gear and とじる
-    "@media (max-width:430px){.kg-title{display:none}.kg-purse{margin-right:auto}}",
+    ".kg-dots{flex:none;display:flex;align-items:center;gap:5px}",
+    ".kg-dot{width:8px;height:8px;border-radius:50%;box-shadow:inset 0 0 0 2px var(--kg-paper)}",
+    ".kg-dot-here{background:var(--kg-paper)}",
+    ".kg-dot-lock{width:9px;height:11px;border-radius:0;box-shadow:none;opacity:.8;background:url(\"data:image/svg+xml,",
+    "%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 9 11'%3E%3Cpath d='M2.2 5V3.4a2.3 2.3 0 0 1 4.6 0V5' fill='none' ",
+    "stroke='%23f4e6c4' stroke-width='1.5'/%3E%3Crect x='.5' y='4.6' width='8' height='6' rx='1' fill='%23f4e6c4'/%3E%3C/svg%3E\") ",
+    "center/contain no-repeat}",
+    // a narrow phone: the name smaller, over the dots, and the purse and とじる narrower, so the longest name still fits
+    // beside a five-digit purse, the gear and とじる
+    "@media (max-width:430px){.kg-top{gap:6px}.kg-title{flex-direction:column;align-items:flex-start;gap:3px}",
+    ".kg-map-name{max-width:100%;font-size:13px;letter-spacing:0}.kg-top .kg-purse{padding:3px 8px}.kg-top .kg-close{padding:4px 10px}.kg-top .kg-gear{width:36px}}",
     ".kg-purse{display:flex;align-items:center;gap:6px;padding:3px 10px;background:var(--kg-wood-dark);",
     "border-radius:4px;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;color:#ffe9a6}",
     ".kg-btn{min-height:36px;padding:4px 14px;color:var(--kg-ink);background:var(--kg-paper);border:2px solid var(--kg-wood-dark);",
@@ -1598,7 +1856,24 @@
     ".kg-panel .kg-btn:focus-visible,.kg-opt:focus-visible{outline-color:var(--kg-wood-dark)}",   // white is lost on paper
     ".kg-view{position:relative;flex:1;min-height:120px;overflow:hidden;touch-action:none;background:var(--kg-shade)}",
     ".kg-world{position:absolute;left:0;top:0;transform-origin:0 0}",
-    ".kg-bg{position:absolute;inset:0;width:100%;height:100%;max-width:none;pointer-events:none}",
+    ".kg-ground,.kg-bg{position:absolute;inset:0;width:100%;height:100%;max-width:none;pointer-events:none}",
+    // an exit's signpost, drawn in depth order with the items (signFor). Its hit area reaches 16 px round it on the
+    // screen whatever the zoom: the world's --kg-s is its scale (clamp)
+    ".kg-post{position:absolute}",
+    ".kg-post::before{content:'';position:absolute;inset:calc(-16px / var(--kg-s,1))}",
+    ".kg-post>.kg-sprite{position:relative;filter:drop-shadow(0 6px 3px rgba(20,40,10,.35))}",
+    // its label, over the map at screen size above the post (placeSigns), a tail pointing down at it; a locked map's
+    // has its price in place of its name
+    ".kg-exit{position:absolute;left:0;top:0;z-index:3;display:flex;align-items:center;gap:3px;min-height:28px;",
+    "padding:2px 10px;font-size:13px;border-radius:999px}",
+    ".kg-exit::after{content:'';position:absolute;left:50%;top:100%;margin:2px 0 0 -5px;border:5px solid transparent;",
+    "border-bottom:0;border-top-color:var(--kg-wood-dark)}",
+    ".kg-exit:active::after{display:none}",
+    ".kg-exit-shut{background:var(--kg-paper-2)}",
+    // the walk: the view goes dark and the next map fades in (walk)
+    ".kg-veil{position:absolute;inset:0;z-index:4;background:var(--kg-shade);pointer-events:none;",
+    "animation:kg-veil .45s ease-in forwards}",
+    "@keyframes kg-veil{from{opacity:1}to{opacity:0}}",
     ".kg-sprite{background-repeat:no-repeat}",
     ".kg-item{position:absolute}",
     // the shadow is on the picture, with the sway, so it sways with it; the pop scales the whole item
@@ -1621,8 +1896,9 @@
     ".kg-hint>span{overflow:hidden;text-overflow:ellipsis}",
     // the compost-all question is too long for one line on a phone: it wraps, at its spaces only (keep-all keeps
     // the kana words whole), in a pill with smaller corners for two lines
-    ".kg-hint-all{border-radius:18px}",
-    ".kg-hint-all>span{white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.35}",
+    // the same for a map's question, or how many coins it's short (kg-hint-long)
+    ".kg-hint-all,.kg-hint-long{border-radius:18px}",
+    ".kg-hint-all>span,.kg-hint-long>span{white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.35}",
     ".kg-hint .kg-sprite{flex:none}",
     ".kg-hint .kg-btn{flex:none;min-height:30px;padding:2px 10px;pointer-events:auto;border-radius:999px}",   // only the text gives way
     ".kg-hint .kg-x{width:30px;padding:0}",
@@ -1681,11 +1957,12 @@
     ".kg-shop-min .kg-badge{margin:4px 0 0;padding:3px 0;text-combine-upright:all}",    // the count upright, below the name
     ".kg-shop-min .kg-confirm{position:fixed;left:8px;right:62px;bottom:8px}",
     ".kg-shop-min .kg-btn.kg-fold{right:7px}}",
-    "@media (prefers-reduced-motion:reduce){.kg-plus,.kg-pop,.kg-toast,.kg-sway{animation:none}.kg-plus{opacity:0}.kg-bug{display:none}.kg-switch::after,.kg-bar{transition:none}}"
+    "@media (prefers-reduced-motion:reduce){.kg-plus,.kg-pop,.kg-toast,.kg-sway{animation:none}.kg-plus{opacity:0}.kg-bug{display:none}.kg-veil{display:none}",
+    ".kg-switch::after,.kg-bar{transition:none}}"
   ].join("");
 
   window.KanpekiGarden = { mount: mount, load: load, save: save, earn: earn, life: lifeOf, swayOf: swayOf,
-    butterflies: butterflies, blooms: blooms, items: ITEMS, text: TEXT };
+    butterflies: butterflies, blooms: blooms, items: ITEMS, text: TEXT, maps: MAPS };
 
   // On a card: mount into #kg in AnkiDroid's study screen only (ankidroid-reviewer.js defines
   // ankidroid.userAction; the previewer and desktop Anki do not).
