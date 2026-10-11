@@ -28,7 +28,7 @@ Good to know
   the previewer or the card browser.
 - The garden and its coins are saved on that phone only; they are not synced. Clearing AnkiDroid's app
   data, or uninstalling it, deletes them.
-- Away for a while? Turn on おやすみ (vacation) in the garden's settings (the gear): plants then don't
+- Away for a while? Turn on おやすみ (Vacation in English) in the garden's settings (the gear): plants then don't
   grow, wilt or die, and cards pay no coins until it's turned off.
 - To update, replace the media files with the new zip's; the garden's save is kept.
 - The version is shown at the bottom of the garden's settings.

@@ -9,7 +9,8 @@ const { KEY, Node, page, openGarden, openSettings } = require("./harness");
 
 const NOW = new Date(2026, 9, 12, 10).getTime();          // 2026-10-12, a Monday
 const DAY_KEY = "kanpekikun-garden-dev-day";
-const JAPANESE = /[　-ヿ一-鿿]/;           // kana, kanji and Japanese punctuation
+const JAPANESE = /[\u3000-\u30ff\u4e00-\u9fff]/;           // kana, kanji and Japanese punctuation
+const FULLWIDTH = /[\uff01-\uff5e]/;                      // fullwidth ！ to ～, for TEXT.en (the zoom ＋/－ are in both)
 const byClass = (root, c) => root.all((n) => n.classList.contains(c));
 const stored2 = (over) => ({ [KEY]: JSON.stringify(Object.assign(
   { v: 2, coins: 0, earned: 0, seen: {}, inv: {}, placed: [], next: 1, days: {} }, over)) });
@@ -51,7 +52,7 @@ test("the two text tables have the same keys, each the same kind of thing; no Ja
   for (const [k, v] of Object.entries(en)) {
     const calls = k === "name" ? [["ばら", "Rose"]] : [[1, 2], [2, 3], [-1, 0], [0, 0]];
     const out = typeof v === "function" ? calls.map((a) => v(...a)) : [].concat(v);
-    for (const t of out) assert.ok(typeof t === "string" && t && !JAPANESE.test(t), k + ": " + t);
+    for (const t of out) assert.ok(typeof t === "string" && t && !JAPANESE.test(t) && !FULLWIDTH.test(t), k + ": " + t);
   }
 });
 
@@ -62,6 +63,7 @@ test("every item has an English name, the removed ones too, each its own", () =>
   for (const n of names) assert.ok(typeof n === "string" && /^[A-Z][A-Za-z -]*[a-z]$/.test(n), JSON.stringify(n));
   assert.strictEqual(new Set(names).size, names.length, "two items share an English name");
   assert.strictEqual(win.KanpekiGarden.items.rose_pink.en, "Pink rose");
+  assert.strictEqual(win.KanpekiGarden.items.flytrap.en, "Venus flytrap");
   assert.strictEqual(win.KG_REMOVED.tomato_ripe[1], "Ripe tomato");
 });
 
@@ -72,7 +74,7 @@ test("data-lang=\"en\": the top bar, the tabs, the shop's cards and questions ar
   assert.deepStrictEqual([texts(root, "kg-title")[0], texts(root, "kg-close")[0]], ["My garden", "Close"]);
   assert.strictEqual(byClass(root, "kg-gear")[0].attrs["aria-label"], "Settings");
   assert.deepStrictEqual(byClass(root, "kg-zbtn").map((n) => n.attrs["aria-label"]), ["Zoom in", "Zoom out"]);
-  assert.deepStrictEqual(texts(root, "kg-tab"), ["Bag1", "Flowers", "Pots", "Veggies", "Bushes", "Trees", "Decor"]);
+  assert.deepStrictEqual(texts(root, "kg-tab"), ["Bag1", "Flowers", "Pots", "Veggies", "Greenery", "Trees", "Decor"]);
   assert.deepStrictEqual(texts(root, "kg-name").slice(0, 3), ["Pink rose", "Red rose", "Yellow tulip"]);
   // buying: enough coins, and too few
   byClass(root, "kg-card")[0].click();
@@ -89,11 +91,11 @@ test("data-lang=\"en\": the top bar, the tabs, the shop's cards and questions ar
   byClass(root, "kg-card")[0].click();
   assert.strictEqual(hint(root).textContent, "Tap to put it down✕");
   assert.strictEqual(button(hint(root), "✕").attrs["aria-label"], "Cancel");
-  assert.strictEqual(byClass(root, "kg-fold")[0].attrs["aria-label"], "Open the shop");   // folded by itself
+  assert.strictEqual(byClass(root, "kg-fold")[0].attrs["aria-label"], "Show the shop");   // folded by itself
   touch(root, null);
   assert.strictEqual(hint(root).textContent, "Drag it to move itPut awayOK");
   button(hint(root), "OK").click();
-  assert.strictEqual(byClass(root, "kg-fold")[0].attrs["aria-label"], "Fold the shop");
+  assert.strictEqual(byClass(root, "kg-fold")[0].attrs["aria-label"], "Hide the shop");
   assert.strictEqual(byClass(root, "kg-empty")[0].textContent, "Your bag is empty. Buy something in the shop!");
   assert.deepStrictEqual(japanese(root), []);
 });
@@ -104,7 +106,7 @@ test("data-lang=\"en\": the compost question, the notes, the vacation badge and 
     refunded: { items: { "なえのトレー": 1, "まっかなトマト": 2 }, coins: 250 } });
   stored[DAY_KEY] = "2";
   const root = openGarden(page(stored, { now: NOW, reduceMotion: true }), undefined, Object.assign({ dev: "1" }, EN));
-  assert.match(confirm(root).textContent, /^Seedling tray, Ripe tomato×2 are gone from the shop\. \+250OK$/);
+  assert.match(confirm(root).textContent, /^Seedling tray, Ripe tomato ×2 are gone from the shop\. \+250OK$/);
   assert.strictEqual(byClass(root, "kg-vac-badge")[0].textContent, "On vacation");
   touch(root, byClass(root, "kg-item")[0]);
   assert.strictEqual(hint(root).textContent, "Compost it? +5Yes✕");
@@ -116,15 +118,16 @@ test("data-lang=\"en\": the compost question, the notes, the vacation badge and 
   assert.strictEqual(texts(panel, "kg-note")[0], "Turned off in your phone's settings");
   const dev = byClass(panel, "kg-devset")[0];
   assert.deepStrictEqual([dev.attrs["aria-label"], texts(dev, "kg-devset-h")[0]], ["Test", "Test"]);
-  assert.deepStrictEqual(texts(dev, "kg-dev"), ["+100", "+150", "−1 day", "Today +2 days ✕", "+1 day"]);
+  assert.deepStrictEqual(texts(dev, "kg-dev"), ["+100", "+150", "−1 day", "+2 days ✕", "+1 day"]);
   assert.deepStrictEqual(byClass(dev, "kg-dev").map((n) => n.attrs["aria-label"]), ["Test: 100 more coins",
-    "Test: add 150 plants", "Test: go back a day", "Test: today is moved +2 days (tap to go back)", "Test: go on a day"]);
+    "Test: add 150 plants", "Test: one day back", "Test: today +2 days (tap to reset)", "Test: one day forward"]);
   button(dev, "+1 day").click();
-  assert.strictEqual(texts(dev, "kg-dev-day")[0], "Today +3 days ✕");
+  assert.strictEqual(texts(dev, "kg-dev-day")[0], "+3 days ✕");
+  assert.strictEqual(page({}).KanpekiGarden.text.en.testDayMoved(-1), "Test: today −1 day (tap to reset)");
   // vacation off at once, and on after the question
   byClass(panel, "kg-vac")[0].click();
   byClass(panel, "kg-vac")[0].click();
-  assert.strictEqual(confirm(root).textContent, "Go on vacation?The garden stops. No coins until it's over.YesCancel");
+  assert.strictEqual(confirm(root).textContent, "Go on vacation?The garden stops. No coins until you turn it off.YesCancel");
   assert.deepStrictEqual(japanese(root), []);
 });
 

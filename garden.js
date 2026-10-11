@@ -118,6 +118,7 @@
       foldShop: "おみせを たたむ",
       // notes
       listSep: "、",
+      count: function (n) { return "×" + n; },
       goneFromShop: function () { return " は おみせから なくなったよ。"; },
       locked: "いまは にわを ひらけないよ",
       // the settings
@@ -139,7 +140,7 @@
       testDayMoved: function (n) { return "テスト：きょうを " + signed(n) + "日 ずらしている（タップで もどす）"; }
     },
     en: {
-      tabs: ["Bag", "Flowers", "Pots", "Veggies", "Bushes", "Trees", "Decor"],
+      tabs: ["Bag", "Flowers", "Pots", "Veggies", "Greenery", "Trees", "Decor"],
       name: function (ja, en) { return en; },
       openGarden: "Open the garden",
       openResting: "Open the garden (on vacation)",
@@ -165,9 +166,10 @@
       tooFew: function (n) {
         return "You need " + n + (n === 1 ? " more coin" : " more coins") + ". Keep going with your cards!";
       },
-      openShop: "Open the shop",
-      foldShop: "Fold the shop",
+      openShop: "Show the shop",
+      foldShop: "Hide the shop",
       listSep: ", ",
+      count: function (n) { return " ×" + n; },
       goneFromShop: function (many) { return many ? " are gone from the shop." : " is gone from the shop."; },
       locked: "The garden can't open right now",
       closeSettings: "Close settings",
@@ -176,17 +178,17 @@
       butterflies: "Butterflies fly",
       vacation: "Vacation",
       vacationAsk: "Go on vacation?",
-      vacationKeep: "The garden stops. No coins until it's over.",
+      vacationKeep: "The garden stops. No coins until you turn it off.",
       test: "Test",
       testCoins: "Test: 100 more coins",
       testPlants: "Test: add 150 plants",
       dayBack: "−1 day",
       dayOn: "+1 day",
-      testDayBack: "Test: go back a day",
-      testDayOn: "Test: go on a day",
-      dayMoved: function (n) { return "Today " + signed(n) + (Math.abs(n) === 1 ? " day" : " days") + " ✕"; },
+      testDayBack: "Test: one day back",
+      testDayOn: "Test: one day forward",
+      dayMoved: function (n) { return signed(n) + (Math.abs(n) === 1 ? " day" : " days") + " ✕"; },
       testDayMoved: function (n) {
-        return "Test: today is moved " + signed(n) + (Math.abs(n) === 1 ? " day" : " days") + " (tap to go back)";
+        return "Test: today " + signed(n) + (Math.abs(n) === 1 ? " day" : " days") + " (tap to reset)";
       }
     }
   };
@@ -1314,7 +1316,7 @@
       delete s.refunded;
       var c = confirmBox();
       var got = Object.keys(r.items);
-      var names = got.map(function (n) { return removedName(n) + (r.items[n] > 1 ? "×" + r.items[n] : ""); });
+      var names = got.map(function (n) { return removedName(n) + (r.items[n] > 1 ? T.count(r.items[n]) : ""); });
       var text = el("div", "kg-ctext");
       var what = el("span", null, "");
       what.append(el("strong", null, names.join(T.listSep)),

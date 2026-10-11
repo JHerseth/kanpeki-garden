@@ -156,7 +156,7 @@ CATALOG = [
     ("pot_palm", "ヤシのはち", "Potted palm", "はちうえ", 50, [(580, 327)]),
     ("hang_spider", "オリヅルラン", "Spider plant", "はちうえ", 50, [(680, 327)]),
     ("pot_spiky", "とげとげのはち", "Spiky plant", "はちうえ", 50, [(781, 328)]),
-    ("flytrap", "ハエトリソウ", "Flytrap", "はちうえ", 50, [(885, 329)]),
+    ("flytrap", "ハエトリソウ", "Venus flytrap", "はちうえ", 50, [(885, 329)]),
     ("planter_white", "白いプランター", "White planter", "はちうえ", 50, [(990, 325)]),
     ("flower_bowl", "花のボウル", "Flower bowl", "はちうえ", 50, [(1094, 328)]),
     ("seedling_box", "なえばこ", "Seedling box", "はちうえ", 50, [(1199, 329)]),
