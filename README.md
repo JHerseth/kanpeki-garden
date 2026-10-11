@@ -14,6 +14,8 @@ The UI is in Japanese (kana), written for young learners.
 | `art/` | Source art: the sprite sheet, background, stage-art strips and decorations (strips and decorations in Git LFS) |
 | `art/tools/` | Helper pages and scripts for making and checking the art |
 | `tests/` | Node tests with a small fake DOM |
+| `LICENSE` | MIT licence, code and art |
+| `ART.md` | How the art was made |
 
 ## Build
 
@@ -40,3 +42,7 @@ Copy `media/_garden.js`, `media/_garden_sprites1.webp` and `media/_garden_bg.web
 ```
 
 In AnkiDroid, turn on Settings → Advanced → "localStorage in Study Screen"; the garden keeps its save there, on the phone. See the header of `garden.js` for the slot's options.
+
+## Licence
+
+MIT, for the code and the art alike: see [`LICENSE`](LICENSE). The art was made with AI image generation; [`ART.md`](ART.md) says how and which files it covers.
