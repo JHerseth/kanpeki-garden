@@ -1,6 +1,6 @@
 # Kanpeki Garden
 
-A small garden game that lives inside Anki cards. Each card the player answers in AnkiDroid's study screen pays one coin a day; coins buy flowers, vegetables, trees and decorations for a pixel-art garden. Plants grow on each day with reviews (the day they're planted too), wilt after two days without, and die after four; a vacation switch freezes everything.
+A small garden game that lives inside Anki cards. Each card the player answers in AnkiDroid's study screen pays one coin a day; coins buy flowers, vegetables, trees and decorations for a pixel-art garden. Plants grow one stage for each day with reviews (the day they're planted too), wilt after two days without, and die after four; a vacation switch freezes everything.
 
 The UI is in Japanese (kana), written for young learners, or in English with `data-lang="en"` on the card's slot.
 

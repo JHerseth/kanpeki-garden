@@ -93,7 +93,7 @@ test("they join on the test day, and wilt and die by the normal rules", () => {
   assert.ok(s2.placed.every((p) => H.life(s2, p).dead));
 });
 
-test("placed on a day with reviews, they stay mature after it", () => {
+test("placed on a day with reviews, they stay mature after it: the planting day doesn't push them past mature", () => {
   const stored = stored2({});
   const win = page(stored, { now: NOW });
   fill(openGarden(win, 1, { dev: "1" })).click();          // a card answered: today has reviews

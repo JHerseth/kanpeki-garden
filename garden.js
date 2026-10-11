@@ -19,10 +19,10 @@
  * desktop Anki, the previewer and the card browser show nothing and pay nothing.
  *
  * Life cycle: a placed plant grows one stage for each finished day with reviews (the planting day
- * too), is dying after 2 finished days in a row without reviews and dead after 4. A review
- * brings a dying plant back at once; a dead one only goes to the compost (+25% of its price).
- * The garden runs only while a card is open, so it never ticks: the save keeps the days that had
- * reviews, and each plant's stage is worked out from them whenever the garden loads (lifeOf).
+ * too), is dying after 2 finished days in a row without reviews and dead after 4. A review brings
+ * a dying plant back at once; a dead one only goes to the compost (+25% of its price). The garden
+ * runs only while a card is open, so it never ticks: the save keeps the days that had reviews,
+ * and each plant's stage is worked out from them whenever the garden loads (lifeOf).
  * Plants can be moved but not put back in もちもの; decorations can.
  *
  * Settings: the gear in the garden's top bar opens a panel with this phone's motion preferences
@@ -353,9 +353,9 @@
     var frozen = 0;                                  // VACATION days since last, before on
     // finished days without reviews from last up to day d, leaving out vacation days
     function missedTo(d) { return d - last - 1 - frozen - Math.max(0, d - Math.max(last + 1, on)); }
-    var i = 0, j = hist.length;                      // skip to day t
+    var i = 0, j = hist.length;                      // skip to day t, or the first day after it if it has no entry
     while (i < j) { var m = (i + j) >> 1; if (hist[m][0] < last) i = m + 1; else j = m; }
-    // t without reviews: past it, as it already counts as reviewed (so it's no vacation day to leave out either)
+    // t without reviews: step past it; it already counts as reviewed, so it's no vacation day to leave out either
     if (i < hist.length && hist[i][0] === last && !(hist[i][1] & REVIEWED)) i++;
     for (; i < hist.length && hist[i][0] < now; i++) {
       if (!(hist[i][1] & REVIEWED)) {

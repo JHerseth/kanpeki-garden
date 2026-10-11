@@ -268,7 +268,7 @@ test("with vacation in the mix, opening the garden after a week away gives the s
     24: ["on"], 29: ["off"], 30: ["on", "c", "off", "c"],
   };
   const start = () => stored2({ next: 4, days: {}, placed: [
-    plant(1, "rose_pink", MON), plant(2, "palm", 9, MATURE), plant(3, "tulip_yellow", TUE)] });
+    plant(1, "rose_pink", MON), plant(2, "palm", 9, MATURE), plant(3, "tulip_yellow", THU)] });
   const act = (stored, d, open) => (plan[d] || []).forEach((a, h) => {
     const when = at(d, 10 + h);
     if (a === "c") return open ? look(stored, when, h + 1) : review(stored, when, h + 1);
@@ -291,12 +291,13 @@ test("with vacation in the mix, opening the garden after a week away gives the s
   // and the plan does what it says
   assert.deepStrictEqual(seen[MON], [SPROUT, MATURE, SPROUT]);
   assert.deepStrictEqual(seen[TUE], [YOUNG, MATURE, SPROUT]);                  // Monday, its planting day, grew it
-  assert.deepStrictEqual(seen[WED], [MATURE, MATURE, YOUNG]);                  // Tuesday's card came before vacation
-  assert.deepStrictEqual(seen[FRI], [MATURE, MATURE, YOUNG]);                  // Thursday's was on vacation
-  assert.deepStrictEqual(seen[21], [MATURE, MATURE, MATURE]);                  // the 19th missed, the 20th grew them
+  assert.deepStrictEqual(seen[WED], [MATURE, MATURE, SPROUT]);                 // Tuesday's card came before vacation
+  // Thursday's card was on vacation: plant 3's planting day doesn't grow it
+  assert.deepStrictEqual(seen[FRI], [MATURE, MATURE, SPROUT]);
+  assert.deepStrictEqual(seen[21], [MATURE, MATURE, YOUNG]);                   // the 19th missed, the 20th grew them
   assert.deepStrictEqual(seen[23], [DYING, DYING, DYING]);                     // the 21st and 22nd missed
   assert.deepStrictEqual(seen[29], [DYING, DYING, DYING]);                     // the 23rd too, then vacation
-  assert.deepStrictEqual(seen[30], [MATURE, MATURE, MATURE]);                  // the card after it brought them back
+  assert.deepStrictEqual(seen[30], [MATURE, MATURE, YOUNG]);                   // the card after it brought them back
   assert.deepStrictEqual(seen[31], [MATURE, MATURE, MATURE]);
 });
 
