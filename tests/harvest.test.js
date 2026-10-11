@@ -1,13 +1,15 @@
 // Harvest: mature vegetables and fruit trees have a crop once they've been mature through a growth day since they
-// matured or were last picked. A ready plant shows a still glint; a tap picks it for ¤2 or ¤5 (¤50 a day at most,
-// earned left alone), and the next tap selects it; after a pick the hint offers to pick the rest on the map shown, in
-// one save. The save keeps each plant's picked day (h) and the crops picked today (picked), as a v: 3 save.
+// matured or were last picked. A ready plant shimmers, 48 glints at most on the map (a still glint with reduced
+// motion); a tap picks it for ¤2 or ¤5 (¤50 a day at most, earned left alone) with a burst, and the next tap selects
+// it; after a pick the hint offers to pick the rest on the map shown, in one save. The save keeps each plant's picked
+// day (h) and the crops picked today (picked), as a v: 3 save.
 // Every check runs on a fake clock (KG_CLOCK). 2026-10-12 is a Monday.
 // Run: node --test tests/*.test.js
 "use strict";
 const test = require("node:test");
 const assert = require("node:assert");
 const path = require("node:path");
+const vm = require("node:vm");
 const { spawnSync } = require("node:child_process");
 
 const { KEY, page, openGarden, openSettings } = require("./harness");
@@ -213,47 +215,342 @@ test("moving the test day: a plant's crop comes once the day it was mature throu
   assert.deepStrictEqual(glints(g.root), [1]);
 });
 
-// ---- the glint ----------------------------------------------------------------------------------
+// ---- the glints -------------------------------------------------------------------------------------
 
-test("the glint: a pixel-art star in a box over the plant's picture, the picture's size, swaying as it does", async () => {
+/** Let the page finish its task: it gives the ready plants their glints once its drawing is done. */
+const settle = () => new Promise((r) => setImmediate(r));
+/** Placed item id's glints: the children of its crop box, or [] without one. */
+const starsOf = (root, id) => (node(root, id).children[1] ? node(root, id).children[1].children : []);
+const shimmers = (root) => byClass(root, "kg-shimmer");
+/** How many shimmering glints each placed item with a crop box has: {id: n}, 0 for the still glint. */
+const shares = (root) => Object.fromEntries(glints(root).map((id) => {
+  const st = starsOf(root, id);
+  return [id, st.length && st[0].classList.contains("kg-shimmer") ? st.length : 0];
+}));
+const css = (g) => g.win.document.getElementById("kg-style").textContent;
+/** n ready plants of kind k (or kinds by index), ids from `from`, spread over the map. */
+const many = (n, k = "onion", from = 1, more) => Array.from({ length: n }, (_, i) => ripe(from + i,
+  typeof k === "function" ? k(i) : k, Object.assign({ x: 100 + (i % 15) * 120, y: 300 + Math.floor(i / 15) * 150 }, more)));
+const px = (v) => parseFloat(v);
+
+test("the shimmer: 3 glints on a vegetable, 4 on a fruit tree, in a box over the picture swaying with it", async () => {
   const g = garden({ placed: [ripe(1, "corn"), ripe(2, "pear_tree", { x: 900 }), ripe(3, "tulip_yellow")], next: 4 });
   const S = g.win.KG_SCALE;
   assert.deepStrictEqual(glints(g.root), [1, 2]);
+  await settle();
+  assert.deepStrictEqual(plain(shares(g.root)), { 1: 3, 2: 4 });
   for (const id of [1, 2]) {
-    const d = node(g.root, id), pic = d.children[0], box = d.children[1], star = box.children[0];
-    const f = g.G.items[saved(g.stored).placed[id - 1].k].frames[MATURE];
+    const d = node(g.root, id), pic = d.children[0], box = d.children[1];
+    const f = g.G.items[saved(g.stored).placed[id - 1].k].frames[MATURE], w = f.w * S, h = f.h * S;
     assert.strictEqual(d.children.length, 2);
-    assert.deepStrictEqual([box.children.length, star.className.trim()], [1, "kg-glint"]);
-    assert.deepStrictEqual([box.style.width, box.style.height], [f.w * S + "px", f.h * S + "px"]);
-    // 11 × 4 = 44 garden px a side, centred over the picture, its bottom 10 px down on the top of it
-    assert.deepStrictEqual([star.style.width, star.style.height], ["44px", "44px"]);
-    assert.deepStrictEqual([star.style.left, star.style.top], [(f.w * S - 44) / 2 + "px", "-34px"]);
-    assert.match(star.style.backgroundImage, /^url\(data:image\/png/);
+    assert.deepStrictEqual([box.style.width, box.style.height], [w + "px", h + "px"]);
     // the same sway as the picture: its skew about the same anchor, at the same time
     assert.ok(box.classList.contains("kg-sway") && pic.classList.contains("kg-sway"));
     for (const k of ["transformOrigin", "--kg-a", "animationDuration", "animationDelay"]) {
       assert.strictEqual(box.style[k], pic.style[k], k);
     }
+    const names = new Set();
+    box.children.forEach((star, i, all) => {
+      assert.deepStrictEqual(star.className.trim().split(" "), ["kg-glint", "kg-shimmer"]);
+      // its box is the crown: the middle 60% of the picture's width, from 10% to 50% of its height down; the star,
+      // 11 × 4 = 44 garden px a side, at its top left, so a translate in percent of the box puts it on the crown
+      const near = (v, want) => Math.abs(px(v) - want) < 1e-9;
+      assert.ok(near(star.style.left, 0.2 * w - 22) && near(star.style.top, 0.1 * h - 22), star.style.left + star.style.top);
+      assert.ok(near(star.style.width, 0.6 * w) && near(star.style.height, 0.4 * h));
+      assert.strictEqual(star.style.backgroundSize, "44px");
+      assert.match(star.style.backgroundImage, /^url\(data:image\/png/);
+      // three showings of 2 to 2.8 s each, the plant's glints a share of a showing apart, and each its own keyframes
+      const time = px(star.style.animationDuration) / 3, start = -px(star.style.animationDelay) / time;
+      assert.ok(time >= 2 && time <= 2.8, star.style.animationDuration);
+      assert.ok(start >= i / all.length && start <= (i + 0.6) / all.length, star.style.animationDelay);
+      assert.match(star.style.animationName, /^kg-shimmer[0-5]$/);
+      names.add(star.style.animationName);
+    });
+    assert.strictEqual(names.size, box.children.length, "each of a plant's glints shows at points of its own");
   }
-  await new Promise((r) => setImmediate(r));
+  await settle();
   assert.deepStrictEqual([1, 2].map((id) => node(g.root, id).children[1].getAnimations()[0].startTime), [0, 0]);
   // it's in the world, which carries the map's zoom
   assert.ok(byClass(g.root, "kg-world")[0].contains(node(g.root, 1).children[1]));
-  const css = g.win.document.getElementById("kg-style").textContent;
-  assert.match(css, /\.kg-glint\{[^}]*image-rendering:pixelated/);
+  assert.match(css(g), /\.kg-glint\{[^}]*image-rendering:pixelated/);
 });
 
-test("with reduced motion, or the sway switched off, the glint shows still", () => {
-  let g = garden({ placed: [ripe(1)], next: 2 }, { reduceMotion: true });
-  assert.deepStrictEqual(glints(g.root), [1]);
+test("the shimmer's keyframes: transform and opacity, no var(); 3 times a glint appears, rises 20 px and fades", () => {
+  const g = garden({ placed: [ripe(1)], next: 2 });
+  const sets = [...css(g).matchAll(/@keyframes kg-shimmer(\d)\{((?:[\d.]+%\{[^{}]*\})+)\}/g)];
+  assert.deepStrictEqual(sets.map((m) => m[1]), ["0", "1", "2", "3", "4", "5"]);
+  const spots = new Set();
+  for (const [, , body] of sets) {
+    const stops = [...body.matchAll(/([\d.]+)%\{([^{}]*)\}/g)].map((m) => [+m[1], m[2]]);
+    assert.strictEqual(stops.length, 16);
+    assert.deepStrictEqual(stops[0][1], stops[15][1], "it ends where it starts");
+    assert.strictEqual(stops[15][0], 100);
+    for (const [, decl] of stops) {
+      assert.deepStrictEqual(decl.split(";").map((d) => d.split(":")[0]), ["opacity", "transform"]);
+      assert.doesNotMatch(decl, /var\(/);
+    }
+    // each third: at a point in percent of the crown, it grows from nothing, twinkles, and fades 20 px up
+    for (let k = 0; k < 3; k++) {
+      const third = stops.slice(5 * k, 5 * k + 5), at = /translate\(([\d.]+)%,calc\(([\d.]+)% - /.exec(third[0][1]);
+      assert.ok(Math.abs(third[0][0] - 100 * k / 3) < 1e-3);
+      for (const [, decl] of third) assert.ok(decl.includes("translate(" + at[1] + "%,calc(" + at[2] + "% - "), decl);
+      assert.match(third[0][1], /^opacity:0;.* - 0px\)\) scale\(0\.2\)$/);
+      assert.match(third[1][1], /^opacity:1;.*scale\(1\)$/);
+      assert.match(third[4][1], /^opacity:0;.* - 20px\)\) scale\(0\.3\)$/);
+      spots.add(at[1] + " " + at[2]);
+    }
+  }
+  assert.strictEqual(spots.size, 18, "every showing at a point of its own");
+});
+
+test("the cap: 48 shimmering glints at most on the map; with more ready plants each gets fewer, 1 at least", () => {
+  const G = page({}).KanpekiGarden;
+  const veg = (n) => Array.from({ length: n }, (_, i) => ({ id: i + 1, k: "tomato" }));
+  const fruit = (n) => Array.from({ length: n }, (_, i) => ({ id: i + 1, k: FRUIT[i % 3] }));
+  const counts = (o) => Object.values(o);
+  const sum = (o) => counts(o).reduce((a, b) => a + b, 0);
+  assert.deepStrictEqual(plain(G.glintShares(veg(1))), { 1: 3 });
+  assert.deepStrictEqual(plain(G.glintShares(fruit(1))), { 1: 4 });
+  // an even share: its own while 48 go round, then 3, 2 and 1 each
+  for (const [n, each] of [[12, 4], [13, 3], [16, 3], [17, 2], [24, 2], [25, 1], [48, 1]]) {
+    assert.deepStrictEqual(counts(G.glintShares(fruit(n))), Array(n).fill(each), n + " fruit trees");
+    assert.deepStrictEqual(counts(G.glintShares(veg(n))), Array(n).fill(Math.min(3, each)), n + " vegetables");
+  }
+  for (let n = 1; n <= 200; n++) {
+    for (const ready of [veg(n), fruit(n), veg(n).map((p, i) => (i % 2 ? p : { id: p.id, k: "apple" }))]) {
+      const out = G.glintShares(ready);
+      assert.strictEqual(counts(out).length, n);
+      assert.ok(sum(out) <= 48, n + ": " + sum(out));
+      if (n <= 48) assert.ok(counts(out).every((c) => c >= 1), String(n));
+      else assert.deepStrictEqual([counts(out).filter((c) => c === 1).length, counts(out).filter((c) => !c).length],
+        [48, n - 48]);
+    }
+  }
+  // past 48, the ones that shimmer are the same whatever the order, and spread over the plants, not the first 48
+  const out = plain(G.glintShares(veg(60))), back = plain(G.glintShares(veg(60).reverse()));
+  assert.deepStrictEqual(out, back);
+  const still = Object.keys(out).filter((id) => !out[id]).map(Number);
+  assert.notDeepStrictEqual(still, Array.from({ length: 12 }, (_, i) => 49 + i));
+});
+
+test("in the garden: 60 ready plants have 48 shimmering glints, 1 each, and the other 12 the still glint", async () => {
+  const g = garden({ placed: many(60), next: 61 });
+  await settle();
+  assert.strictEqual(glints(g.root).length, 60);
+  assert.strictEqual(shimmers(g.root).length, 48);
+  const n = plain(shares(g.root));
+  const each = Object.values(n);
+  assert.deepStrictEqual([each.filter((c) => c === 1).length, each.filter((c) => !c).length], [48, 12]);
+  // the still ones: one glint each, centred just above the picture, as with reduced motion
+  for (const id of Object.keys(n).filter((id) => !n[id])) {
+    const st = starsOf(g.root, id);
+    assert.deepStrictEqual([st.length, st[0].className.trim(), st[0].style.top], [1, "kg-glint", "-34px"]);
+  }
+  // 20 ready: 2 each
+  const twenty = garden({ placed: many(20), next: 21 });
+  await settle();
+  assert.deepStrictEqual(Object.values(plain(shares(twenty.root))), Array(20).fill(2));
+});
+
+test("the count stays right as crops are picked: shares grow, and glints not due a change keep on", async () => {
+  const g = garden({ placed: many(13, (i) => FRUIT[i % 3]), next: 14 });
+  await settle();
+  assert.deepStrictEqual(Object.values(plain(shares(g.root))), Array(13).fill(3));
+  touch(g.root, 13);
+  await settle();
+  assert.deepStrictEqual(Object.values(plain(shares(g.root))), Array(12).fill(4));
+  assert.strictEqual(shimmers(g.root).length, 48);
+  // 20 ready, 2 each; one picked leaves 19, still 2 each: the others' glints go on as they were, not started over
+  const h = garden({ placed: many(20), next: 21 });
+  await settle();
+  const before = starsOf(h.root, 5).slice();
+  touch(h.root, 1);
+  await settle();
+  assert.deepStrictEqual(Object.values(plain(shares(h.root))), Array(19).fill(2));
+  assert.deepStrictEqual(starsOf(h.root, 5), before);
+  // and from 49 ready to 48, the plant with the still glint gets one that shimmers
+  const k = garden({ placed: many(49), next: 50 });
+  await settle();
+  const still = Object.entries(plain(shares(k.root))).find(([, c]) => !c)[0];
+  touch(k.root, Number(still) === 1 ? 2 : 1);
+  await settle();
+  assert.deepStrictEqual(Object.values(plain(shares(k.root))), Array(48).fill(1));
+  assert.ok(starsOf(k.root, still)[0].classList.contains("kg-shimmer"));
+});
+
+test("the count stays right after a walk: each map's ready plants share the 48, the map left takes its glints", async () => {
+  const placed = many(30).concat(many(2, "tomato", 31, { m: "riverside" }),
+    [{ id: 33, k: "sign_riverside", x: 1500, y: 1000 }, { id: 34, k: "sign_home", x: 1500, y: 1000, m: "riverside" }]);
+  const g = garden({ maps: ["riverside"], placed, next: 35 });
+  await settle();
+  assert.deepStrictEqual([shimmers(g.root).length, Object.values(plain(shares(g.root)))], [30, Array(30).fill(1)]);
+  touch(g.root, 33);
+  touch(g.root, 33);                                                        // walk there
+  await settle();
+  assert.deepStrictEqual(plain(shares(g.root)), { 31: 3, 32: 3 });
+  const world = byClass(g.root, "kg-world")[0];
+  assert.strictEqual(byClass(world, "kg-glint").length, 6, "none of the home map's");
+  touch(g.root, 34);
+  touch(g.root, 34);                                                        // and back
+  await settle();
+  assert.deepStrictEqual([shimmers(g.root).length, byClass(world, "kg-glint").length], [30, 30]);
+});
+
+test("the count stays right as the test day moves and vacation switches", async () => {
+  // 12 fruit trees ready (4 each); 4 pumpkins mature today, ready tomorrow
+  const placed = many(12, (i) => FRUIT[i % 3]).concat(Array.from({ length: 4 }, (_, i) =>
+    ({ id: 13 + i, k: "pumpkin", x: 300 + 200 * i, y: 1000, t: iso(MON), g: MATURE })));
+  const g = garden({ placed, next: 17 }, { card: 5, data: { dev: "1" } });
+  await settle();
+  assert.deepStrictEqual([glints(g.root).length, shimmers(g.root).length], [12, 48]);
+  const panel = openSettings(g.root), dev = (t) => byClass(panel, "kg-dev").find((b) => b.textContent === t);
+  dev("+1日").click();
+  await settle();
+  assert.deepStrictEqual([glints(g.root).length, Object.values(plain(shares(g.root)))], [16, Array(16).fill(3)]);
+  dev("−1日").click();
+  await settle();
+  assert.deepStrictEqual([glints(g.root).length, Object.values(plain(shares(g.root)))], [12, Array(12).fill(4)]);
+  // vacation: no crops, so no glints at all; back after
+  const sw = byClass(panel, "kg-vac")[0];
+  sw.click();
+  byClass(g.root, "kg-confirm")[0].all((n) => n.tagName === "button" && n.textContent === "はい")[0].click();
+  await settle();
+  assert.deepStrictEqual([glints(g.root), byClass(g.root, "kg-glint").length], [[], 0]);
+  sw.click();
+  await settle();
+  assert.deepStrictEqual([glints(g.root).length, shimmers(g.root).length], [12, 48]);
+});
+
+test("a pick bursts: 8 glints fly out from the crown's middle, in the world over every item, gone after 0.6 s", async () => {
+  const g = garden({ placed: [ripe(1, "apple"), ripe(2, "corn", { x: 900 })], next: 3 });
+  await settle();
+  touch(g.root, 1);
+  assert.deepStrictEqual(starsOf(g.root, 1), [], "its own glints go at once");
+  const sparks = byClass(g.root, "kg-sparks")[0], b = byClass(g.root, "kg-burst");
+  assert.strictEqual(sparks.parent, byClass(g.root, "kg-world")[0]);
+  assert.deepStrictEqual([b.length, b[0].parent, b[0].children.length], [1, sparks, 8]);
+  const f = g.G.items.apple.frames[MATURE], S = g.win.KG_SCALE;
+  const near = (v, want) => Math.abs(px(v) - want) < 1e-9;
+  assert.ok(near(b[0].style.left, 220 + (0.5 * f.w - f.ax) * S) && near(b[0].style.top, 700 + (0.3 * f.h - f.ay) * S));
+  const angles = b[0].children.map((star) => {
+    assert.deepStrictEqual([star.className.trim(), star.style.left, star.style.top], ["kg-glint", "-22px", "-22px"]);
+    const x = px(star.style["--kg-bx"]), y = px(star.style["--kg-by"]), far = Math.hypot(x, y);
+    assert.ok(far >= 70 && far <= 110, String(far));
+    return (Math.atan2(y, x) + 2 * Math.PI) % (2 * Math.PI);
+  });
+  // each its own way: one in each eighth of the circle
+  assert.deepStrictEqual(angles.map((a) => Math.floor(a / (Math.PI / 4))).sort(), [0, 1, 2, 3, 4, 5, 6, 7]);
+  assert.match(css(g), /\.kg-sparks\{[^}]*z-index:2000;pointer-events:none/);
+  assert.match(css(g), /\.kg-burst>\.kg-glint\{animation:kg-burst \.6s/);
+  g.win.wait(599);
+  assert.strictEqual(byClass(g.root, "kg-burst").length, 1);
+  g.win.wait(1);
+  assert.deepStrictEqual(byClass(g.root, "kg-burst"), []);
+  // a pick the day's cap leaves unpaid bursts too
+  const capped = garden({ placed: [ripe(1)], next: 2, picked: { day: iso(MON), coins: 50 } });
+  touch(capped.root, 1);
+  assert.deepStrictEqual([byClass(capped.root, "kg-burst").length, floats(capped.root)], [1, []]);
+});
+
+test("a burst under way goes with a walk, and with the garden when it closes", () => {
+  const g = garden({ maps: ["riverside"], placed: [ripe(1), { id: 2, k: "sign_riverside", x: 1500, y: 1000 }],
+    next: 3 });
+  touch(g.root, 1);
+  assert.strictEqual(byClass(g.root, "kg-burst").length, 1);
+  touch(g.root, 2);
+  touch(g.root, 2);                                                         // walk
+  assert.deepStrictEqual(byClass(g.root, "kg-burst"), []);
+  const h = garden({ placed: [ripe(1)], next: 2 });
+  touch(h.root, 1);
+  byClass(h.root, "kg-close")[0].click();
+  assert.ok(!h.root.isConnected);
+  h.win.wait(600);
+  assert.deepStrictEqual(h.win.document.body.all((n) => n.classList.contains("kg-glint")), []);
+});
+
+test("with reduced motion: one still glint above the picture, never a shimmer, and a pick doesn't burst", async () => {
+  const g = garden({ placed: [ripe(1, "corn"), ripe(2, "pear_tree", { x: 900 })], next: 3 }, { reduceMotion: true });
+  await settle();
+  assert.deepStrictEqual([plain(shares(g.root)), shimmers(g.root).length], [{ 1: 0, 2: 0 }, 0]);
+  const S = g.win.KG_SCALE;
+  for (const id of [1, 2]) {
+    const star = starsOf(g.root, id)[0], f = g.G.items[id === 1 ? "corn" : "pear_tree"].frames[MATURE];
+    assert.ok(!node(g.root, id).children[1].classList.contains("kg-sway"));
+    // 44 garden px a side, centred over the picture, its bottom 10 px down on the top of it
+    assert.deepStrictEqual([star.style.width, star.style.height], ["44px", "44px"]);
+    assert.deepStrictEqual([star.style.left, star.style.top], [(f.w * S - 44) / 2 + "px", "-34px"]);
+  }
+  touch(g.root, 1);
+  assert.deepStrictEqual([byClass(g.root, "kg-burst"), saved(g.stored).placed[0].h], [[], iso(MON)]);
+  await settle();
+  assert.deepStrictEqual(plain(shares(g.root)), { 2: 0 });
+  // and the CSS stops a shimmer and hides a burst, should the phone's setting change while the garden is open
+  assert.match(css(g), /@media \(prefers-reduced-motion:reduce\)\{[^{}]*\.kg-shimmer[,{][^{}]*\{animation:none\}/);
+  assert.match(css(g),
+    /@media \(prefers-reduced-motion:reduce\)\{(?:[^{}]*\{[^}]*\})*?[^{}]*\.kg-burst[,{][^{}]*\{display:none\}/);
+});
+
+test("the sway and butterfly switches don't touch the shimmer: switched off, the glints go on", async () => {
+  const g = garden({ placed: [ripe(1), ripe(2, "apple", { x: 900 })], next: 3 });
+  await settle();
+  const before = [starsOf(g.root, 1).slice(), starsOf(g.root, 2).slice()];
+  const panel = openSettings(g.root), sw = (t) => byClass(panel, "kg-opt").find((n) => n.textContent === t);
+  sw("くさばなが ゆれる").click();
+  sw("ちょうちょが とぶ").click();
+  await settle();
+  assert.deepStrictEqual([starsOf(g.root, 1), starsOf(g.root, 2)], before, "not made again");
+  assert.deepStrictEqual(plain(shares(g.root)), { 1: 3, 2: 4 });
   assert.ok(!node(g.root, 1).children[1].classList.contains("kg-sway"));
-  g = garden({ placed: [ripe(1)], next: 2 });
-  const sway = byClass(openSettings(g.root), "kg-opt").find((n) => n.textContent === "くさばなが ゆれる");
-  sway.click();
-  assert.deepStrictEqual(glints(g.root), [1]);
-  assert.ok(!node(g.root, 1).children[1].classList.contains("kg-sway"));
-  sway.click();
-  assert.ok(node(g.root, 1).children[1].classList.contains("kg-sway"));
+  assert.ok(g.root.classList.contains("kg-no-sway") && g.root.classList.contains("kg-no-butterflies"));
+  assert.doesNotMatch(css(g), /kg-no-(sway|butterflies)[^{]*kg-(shimmer|glint|burst|ripe)/);
+  touch(g.root, 1);
+  assert.strictEqual(byClass(g.root, "kg-burst").length, 1);
+  sw("くさばなが ゆれる").click();
+  assert.ok(node(g.root, 2).children[1].classList.contains("kg-sway"));
+  assert.deepStrictEqual(starsOf(g.root, 2), before[1]);
+});
+
+test("taps: the shimmering glints let them through, the still glint takes them for its plant", () => {
+  const g = garden({ placed: [ripe(1)], next: 2 });
+  const rule = (sel) => new RegExp("(?:^|\\})" + sel.replace(/[.>]/g, "\\$&") + "\\{([^}]*)\\}").exec(css(g))[1];
+  assert.match(rule(".kg-shimmer"), /pointer-events:none/);
+  assert.match(rule(".kg-sparks"), /pointer-events:none/);
+  assert.doesNotMatch(rule(".kg-glint"), /pointer-events/);
+  assert.doesNotMatch(rule(".kg-ripe"), /pointer-events/);
+});
+
+test("while fingers move the map or an item, the shimmer is held (kg-moving), and goes on after; not for a tap", () => {
+  const g = garden({ placed: [ripe(1), { id: 2, k: "bench", x: 900, y: 900 }], next: 3 });
+  const view = byClass(g.root, "kg-view")[0], moving = () => g.root.classList.contains("kg-moving");
+  const fire = (type, id, x, y) => view.on[type].forEach((f) => f({ type, pointerId: id, clientX: x, clientY: y,
+    target: { closest: () => null } }));
+  assert.match(css(g), /\.kg-moving \.kg-shimmer\{animation-play-state:paused\}/);
+  fire("pointerdown", 1, 200, 150);
+  fire("pointermove", 1, 204, 150);
+  assert.ok(!moving(), "not yet a pan");
+  fire("pointermove", 1, 240, 150);
+  assert.ok(moving());
+  fire("pointerup", 1, 240, 150);
+  assert.ok(!moving());
+  // a pinch, until its last finger is lifted
+  fire("pointerdown", 1, 100, 150);
+  fire("pointerdown", 2, 300, 150);
+  assert.ok(moving());
+  fire("pointerup", 2, 300, 150);
+  assert.ok(moving());
+  fire("pointercancel", 1, 100, 150);
+  assert.ok(!moving());
+  // a drag of the selected bench, and a tap
+  touch(g.root, 2);
+  pointer(g.root, "pointerdown", { closest: (sel) => (sel === ".kg-item" ? node(g.root, 2) : null) });
+  pointer(g.root, "pointermove", { closest: () => null }, 260, 150);
+  assert.ok(moving());
+  pointer(g.root, "pointerup", { closest: () => null }, 260, 150);
+  assert.ok(!moving());
+  pointer(g.root, "pointerdown", { closest: (sel) => (sel === ".kg-item" ? node(g.root, 1) : null) });
+  assert.ok(!moving());
+  pointer(g.root, "pointerup", { closest: (sel) => (sel === ".kg-item" ? node(g.root, 1) : null) });
+  assert.deepStrictEqual([moving(), saved(g.stored).placed[0].h], [false, iso(MON)]);
 });
 
 // ---- picking ---------------------------------------------------------------------------------------
@@ -601,6 +898,43 @@ test("zoomed in, pick all floats the coins up from each plant in the view, its g
   // tomato 7's coins: over its middle, from the view's bottom, as its picture's top is below it
   const up = byClass(g.root, "kg-gain");
   assert.deepStrictEqual([up[2].style.left, up[2].style.top], [up[1].style.left, "300px"]);
+});
+
+test("zoomed in, pick all bursts the plants in the view, its glint's room too, and none out of it; one shine for all", async () => {
+  // as above: tomatoes 1 and 2 in the view, tomato 7 by its glint's room; the corn, the apple and tomatoes 5 and 6 out
+  const g = garden({ placed: [ripe(1, "tomato", { x: 1000, y: 600 }), ripe(2, "tomato", { x: 1100, y: 600 }),
+    ripe(3, "corn", { x: 220 }), ripe(4, "apple", { x: 1900 }), ripe(5, "tomato", { x: 900, y: 400 }),
+    ripe(6, "tomato", { x: 1000, y: 880 }), ripe(7, "tomato", { x: 1100, y: 845 })], next: 8 });
+  zoomIn4(g.root);
+  touch(g.root, 1);
+  await settle();
+  // the glints' shares are worked out once for the whole batch, after it, not once a plant: one pass is asked for
+  vm.runInContext("var kept = Promise.resolve, passes = 0;" +
+    "Promise.resolve = function () { passes++; return kept.apply(this, arguments); };", g.win);
+  takeAll(g.root).click();
+  vm.runInContext("Promise.resolve = kept;", g.win);
+  assert.strictEqual(g.win.passes, 1);
+  const f = g.G.items.tomato.frames[MATURE], S = g.win.KG_SCALE;
+  const spot = (x, y) => [x + (0.5 * f.w - f.ax) * S, y + (0.3 * f.h - f.ay) * S];
+  assert.deepStrictEqual(byClass(g.root, "kg-burst").map((b) => [px(b.style.left), px(b.style.top)]),
+    [spot(1000, 600), spot(1100, 600), spot(1100, 845)]);
+  await settle();
+  assert.deepStrictEqual([glints(g.root), byClass(g.root, "kg-glint").length], [[], 3 * 8]);
+  g.win.wait(600);
+  assert.deepStrictEqual(byClass(g.root, "kg-glint"), []);
+});
+
+test("pick all shares 48 burst glints over the plants in the view: 8 each at most, 1 at least, none past the 48th", () => {
+  // the whole map is in the fake view; after a tap's pick (a burst of 8), the rest
+  for (const [n, each] of [[7, [8, 8, 8, 8, 8, 8]], [8, Array(7).fill(6)], [30, Array(29).fill(1)],
+    [60, Array(48).fill(1)]]) {
+    const g = garden({ placed: many(n), next: n + 1 });
+    touch(g.root, 1);
+    takeAll(g.root).click();
+    const b = byClass(g.root, "kg-burst");
+    assert.deepStrictEqual(b.map((x) => x.children.length), [8].concat(each), n + " ready");
+    assert.deepStrictEqual(glints(g.root), [], "all picked");
+  }
 });
 
 test("with the cap nearly reached, pick all pays the plants in the view first, so the coins float up where they're seen", () => {

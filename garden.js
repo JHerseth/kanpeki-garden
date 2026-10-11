@@ -31,14 +31,18 @@
  * through a growth day (a finished day with reviews) since it matured or was last picked. One at most, however many
  * growth days pass; none while it's dying or dead (one it had is lost then, and the day it comes back on brings the
  * next) or while vacation is on. Like its stage, its crop is worked out from the save whenever the garden loads
- * (lifeOf). A ready plant shows a still glint above it, swaying with it (showCrop); a tap picks it for ¤2 (a
- * vegetable) or ¤5 (a fruit tree), with the coins floating up from it, and the next tap selects it as before. Picking
- * pays PICK_CAP (¤50) a day at most: later picks clear the crop for nothing, and the first that the cap cuts short
- * in a day says so in the hint (pickCrops). Its coins aren't counted in earned. After a pick, while more crops are
- * ready on the map shown, the hint offers 「のこり ぜんぶ とる ×n ¤+N」, pick all: a tap picks every one of them, each as
- * a tap would, in one save, for N, what they pay together under the cap (¤+0 once it's reached), those in the view
- * first. Its ✕, the next tap on the map, a walk, starting to place, switching vacation or moving the test day closes
- * the offer; after a pick that the cap cut short, it comes once the cap's note is put away with its OK.
+ * (lifeOf). A ready plant shimmers, riding its sway: 3 glints on a vegetable and 4 on a fruit tree, each appearing on
+ * its crown, twinkling, drifting up and fading, then again elsewhere, by CSS alone. The map shown has 48 moving at
+ * most, each plant fewer as more are ready (glintShares), and a ready plant past the 48th shows a still glint above
+ * it, as every one does with reduced motion (showCrop, shine). The sway and butterfly switches leave it be, and it
+ * holds still while fingers move the map (hold). A tap picks it for ¤2 (a vegetable) or ¤5 (a fruit tree), with a
+ * burst of glints and the coins floating up from it, and the next tap selects it as before. Picking pays PICK_CAP
+ * (¤50) a day at most: later picks clear the crop for nothing, and the first that the cap cuts short in a day says so
+ * in the hint (pickCrops). Its coins aren't counted in earned. After a pick, while more crops are ready on the map
+ * shown, the hint offers 「のこり ぜんぶ とる ×n ¤+N」, pick all: a tap picks every one of them, each as a tap would, in
+ * one save, for N, what they pay together under the cap (¤+0 once it's reached), those in the view first. Its ✕, the
+ * next tap on the map, a walk, starting to place, switching vacation or moving the test day closes the offer; after a
+ * pick that the cap cut short, it comes once the cap's note is put away with its OK.
  *
  * Maps (MAPS): the home map, 「わたしのにわ」, and two more, 「かわべの はらっぱ」 and 「たきの たかだい」. A map's signpost is its
  * key: the shop's とち tab sells 「かわべの はらっぱ」's for ¤500, then, once that is owned, 「たきの たかだい」's for ¤1000
@@ -703,13 +707,27 @@
   }
 
   // A ready crop's glint: a 4-point star, its arms narrowing to the tips, as one 11×11 pixel map (W white, w cream,
-  // g gold, d deep gold at the tips) shown at GLINT_PX garden px a pixel, pixelated. A ready plant shows one, still,
-  // above its picture (showCrop)
+  // g gold, d deep gold at the tips) shown at GLINT_PX garden px a pixel, pixelated. A ready plant shimmers with a few
+  // (fillCrop); with reduced motion it shows one, still, above its picture
   var GLINT = [".....d.....", ".....g.....", ".....g.....", "....gwg....", "...gwWwg...", "dggwWWWwggd",
     "...gwWwg...", "....gwg....", ".....g.....", ".....g.....", ".....d....."];
   var GLINT_INK = { W: "#ffffff", w: "#fff3b8", g: "#f3b72f", d: "#d98a1c" };
   var GLINT_W = 11, GLINT_PX = 4;
   var GLINT_SINK = 10;                      // garden px of the still glint that reach down onto the top of its plant
+  // The shimmer: GLINTS_VEG glints on a vegetable and GLINTS_FRUIT on a fruit tree, GLINTS_MAX at most on the map shown
+  // (glintShares). A glint shows at GLINT_SPOTS points on its plant's crown in turn (CROWN: the shares of the picture's
+  // width, from and to, and height, from and to, that the crown covers), as one of SHIMMERS sets of keyframes has them
+  // (shimmerKeys). A showing takes GLINT_TIME seconds (from .. to, each glint its own) and goes as GLINT_STEPS: [the
+  // share of it gone, opacity, garden px risen, scale], from appearing, small, to faded GLINT_RISE px up; the glint
+  // then rests unseen until the next
+  var GLINTS_VEG = 3, GLINTS_FRUIT = 4, GLINTS_MAX = 48;
+  var CROWN = [0.2, 0.8, 0.1, 0.5];
+  var GLINT_SPOTS = 3, SHIMMERS = 6, GLINT_TIME = [2, 2.8], GLINT_RISE = 20;
+  var GLINT_STEPS = [[0, 0, 0, 0.2], [0.12, 1, 3, 1], [0.3, 0.7, 8, 0.5], [0.45, 1, 12, 0.9],
+    [0.7, 0, GLINT_RISE, 0.3]];
+  // A pick's burst: BURST_N glints fly out BURST_FAR garden px (from .. to) from the middle of the crown, and fade, in
+  // BURST_MS ms; picks at once share GLINTS_MAX (pickCrops)
+  var BURST_N = 8, BURST_FAR = [70, 110], BURST_MS = 600;
   var glintArt = null;
   /** The glint's picture as an image URL, drawn once a page. */
   function glintSheet() {
@@ -732,6 +750,41 @@
     d.style.width = d.style.height = d.style.backgroundSize = size;
     d.style.backgroundImage = "url(" + glintSheet() + ")";
     return d;
+  }
+  /** How many shimmering glints each of the ready plants `ready` (placed items, on the map shown) gets: {id: n}. Its
+   *  own number, GLINTS_FRUIT on a fruit tree and GLINTS_VEG on a vegetable, as far as an even share of GLINTS_MAX
+   *  goes, and 1 at least. Past GLINTS_MAX ready plants, the GLINTS_MAX first by steady(id) get 1 and the rest 0, the
+   *  still glint: so the map never has more than GLINTS_MAX moving, and every ready plant still shows it's ready. Those
+   *  are spread at random over the map, and the same ones every time, whatever order `ready` is in. */
+  function glintShares(ready) {
+    var each = Math.max(1, Math.floor(GLINTS_MAX / ready.length)), out = {};
+    ready.slice().sort(function (a, b) { return steady(a.id, 4) - steady(b.id, 4); }).forEach(function (p, i) {
+      out[p.id] = i < GLINTS_MAX ? Math.min(each, FRUIT.indexOf(p.k) >= 0 ? GLINTS_FRUIT : GLINTS_VEG) : 0;
+    });
+    return out;
+  }
+  /** The shimmer's keyframes, kg-shimmer0 to kg-shimmer<SHIMMERS - 1>: each GLINT_SPOTS showings as GLINT_STEPS has
+   *  them, at points that look random (steady), and at 100% back where it starts. A shimmering glint's box is its
+   *  plant's crown, with the star at its top left (fillCrop), so a point is a translate in percent of the box: one set
+   *  fits every plant, and the keyframes need no var(), which would make each glint's style twice the work in every
+   *  frame the page draws (a pan, a zoom, the butterflies). Transform and opacity only, so the compositor runs them,
+   *  and the page has nothing to do for them while nothing else moves. */
+  function shimmerKeys() {
+    var out = "", span = 100 / GLINT_SPOTS;
+    function key(pct, at, st) {
+      return +pct.toFixed(3) + "%{opacity:" + st[1] + ";transform:translate(" + at[0] + "%,calc(" + at[1] + "% - " +
+        st[2] + "px)) scale(" + st[3] + ")}";
+    }
+    for (var v = 0; v < SHIMMERS; v++) {
+      var keys = "", first = null;
+      for (var k = 0; k < GLINT_SPOTS; k++) {
+        var at = [(100 * steady(v, 2 * k)).toFixed(1), (100 * steady(v, 2 * k + 1)).toFixed(1)];
+        first = first || at;
+        GLINT_STEPS.forEach(function (st) { keys += key(span * (k + st[0]), at, st); });
+      }
+      out += "@keyframes kg-shimmer" + v + "{" + keys + key(100, first, GLINT_STEPS[0]) + "}";
+    }
+    return out;
   }
 
   /** Pay one coin unless this card already paid today. Either way, today is a day with reviews.
@@ -985,7 +1038,8 @@
     world.style.width = WORLD_W + "px";
     world.style.height = WORLD_H + "px";
     var ground = el("div", "kg-ground");     // the maps' pictures, under everything on them (showMap)
-    world.append(ground);
+    var sparks = el("div", "kg-sparks");     // the picks' bursts, over every item on the map shown (burst)
+    world.append(ground, sparks);
     view.append(world);
     ui.hint = el("div", "kg-hint");
     ui.hint.hidden = true;
@@ -1096,7 +1150,7 @@
     }
 
     // placed items: a .kg-item (its spot, depth, selection and pop) around its picture (frame, shadow and sway), and
-    // over the picture, while it has a crop, its glint (showCrop)
+    // over the picture, while it has a crop, its glints (showCrop)
     function drawPlaced(p) {
       var item = ITEMS[p.k];
       if (!item || onMapOf(p) !== here) return;
@@ -1124,27 +1178,75 @@
       swing(pic, f, sw);
       showCrop(d, p, f, sw);
     }
-    /** Show the glint of placed plant p, on its node d, while it has a crop (ripe), or take it away. The glint sits in
-     *  a .kg-ripe box after the picture (f: the frame it shows), the picture's size and place and swaying with it
-     *  (sw, swing), so it rides the sway and the map's zoom without the picture's shadow: centred over the picture,
-     *  just above its top. The box is the node's second child. */
+    /** Show the crop of placed plant p, on its node d, while it has one (ripe), or take it away: a .kg-ripe box after
+     *  the picture (f: the frame it shows), the picture's size and place and swaying with it (sw, swing), so the glints
+     *  in it ride the sway and the map's zoom without the picture's shadow. The box is the node's second child. Its
+     *  glints are shine's to give, once the drawing is done, as how many a plant gets depends on the others. */
     function showCrop(d, p, f, sw) {
       var box = d.children[1];
-      if (!ripe(p)) { if (box) box.remove(); return; }
+      if (!ripe(p)) { if (box) { box.remove(); shineLater(); } return; }
       if (!box) {
         box = el("div", "kg-ripe");
-        box.append(glint());
         d.append(box);
+        shineLater();
       }
-      var w = f.w * KG_SCALE, size = GLINT_W * GLINT_PX, star = box.children[0];
-      box.style.width = w + "px";
+      box.style.width = f.w * KG_SCALE + "px";
       box.style.height = f.h * KG_SCALE + "px";
-      star.style.left = (w - size) / 2 + "px";
-      star.style.top = GLINT_SINK - size + "px";
       swing(box, f, sw);
     }
     /** Whether placed plant p has a crop to pick now (lifeOf). */
     function ripe(p) { var l = life(p); return !!(l && l.crop); }
+
+    // the shimmer: on unless reduced motion (stillMotion), which leaves each ready plant its still glint and a pick
+    // without a burst. The sway and butterfly switches don't touch it: it's how the player sees that a crop is ready
+    var shimmerOn = !stillMotion(), shining = false;
+    /** Have shine run once this task's drawing is done: a crop's box came or went. */
+    function shineLater() {
+      if (!shining) { shining = true; Promise.resolve().then(shine); }
+    }
+    /** Give each ready plant on the map shown its glints (fillCrop): its share of GLINTS_MAX (glintShares), or the
+     *  still one with reduced motion. Once per task, after its drawing (shineLater), as anchorSway is, so a garden
+     *  drawn at once, or many crops picked at once, work them out once. It counts the boxes on the map shown, which
+     *  only showCrop adds and takes away (a plant taken away never has one: only dead ones, decorations and signs
+     *  are), so the shares stay right after whatever drew them: a pick, a walk, the test day moved, vacation. */
+    function shine() {
+      shining = false;
+      var ready = onHere().filter(function (p) { return nodes[p.id] && nodes[p.id].children[1]; });
+      var n = shimmerOn ? glintShares(ready) : {};
+      ready.forEach(function (p) { fillCrop(nodes[p.id].children[1], stageFrame(ITEMS[p.k], life(p)), n[p.id] || 0); });
+    }
+    /** Give crop box `box` (over a picture showing frame f) n shimmering glints, or the still one for 0, unless it has
+     *  them already: made again, they'd start over. A shimmering glint's box is the crown (CROWN), and it gets its
+     *  points (one of the SHIMMERS sets, each of the plant's glints another), its pace (GLINT_TIME) and where it starts
+     *  at random here, the plant's glints a share of a showing apart, so they shimmer rather than blink together; taps
+     *  go through them, as they drift over the plants around. The still one sits centred over the picture, just above
+     *  its top, and takes a tap, as the plant's. */
+    function fillCrop(box, f, n) {
+      var first = box.children[0];
+      if (first && (first.classList.contains("kg-shimmer") ? box.children.length : 0) === n) return;
+      box.textContent = "";
+      var w = f.w * KG_SCALE, h = f.h * KG_SCALE, size = GLINT_W * GLINT_PX;
+      if (!n) {
+        var star = glint();
+        star.style.left = (w - size) / 2 + "px";
+        star.style.top = GLINT_SINK - size + "px";
+        box.append(star);
+        return;
+      }
+      var v = Math.floor(SHIMMERS * Math.random());
+      for (var i = 0; i < n; i++) {
+        var g = glint(), time = GLINT_TIME[0] + (GLINT_TIME[1] - GLINT_TIME[0]) * Math.random();
+        g.classList.add("kg-shimmer");
+        g.style.left = CROWN[0] * w - size / 2 + "px";
+        g.style.top = CROWN[2] * h - size / 2 + "px";
+        g.style.width = (CROWN[1] - CROWN[0]) * w + "px";
+        g.style.height = (CROWN[3] - CROWN[2]) * h + "px";
+        g.style.animationName = "kg-shimmer" + (v + i) % SHIMMERS;
+        g.style.animationDuration = GLINT_SPOTS * time + "s";
+        g.style.animationDelay = -time * (i + 0.6 * Math.random()) / n + "s";
+        box.append(g);
+      }
+    }
 
     // sway: on unless turned off in the settings (setSway), or by reduced motion; starts as prefSwitch
     // will set it, so the first drawing is already right
@@ -1448,14 +1550,18 @@
      *  earlier pick today was cut short, and said so. The plants in the view are picked first, in ps' order, then the
      *  rest: with the cap nearly reached, the coins left go to plants the player sees them float up from. The view's
      *  size is read once, before any of them changes the page (reading it after a change makes the page lay itself
-     *  out again, once a plant). After a tap's pick the hint offers to pick the crops left on the map shown
-     *  (offering), once the cap's note, if it shows, is put away with its OK; after picking them all, nothing. */
+     *  out again, once a plant). The plants in the view burst, sharing GLINTS_MAX glints, BURST_N each at most and 1
+     *  at least, and none past the GLINTS_MAX-th: a burst of 8 each on 50 plants at once stalls a phone for a moment.
+     *  After a tap's pick the hint offers to pick the crops left on the map shown (offering), once the cap's note, if
+     *  it shows, is put away with its OK; after picking them all, nothing. */
     function pickCrops(ps, all) {
       var day = today(), before = pickedOn(day), paid = 0, size = [view.clientWidth, view.clientHeight];
       function shown(p) { return inView(p, stageFrame(ITEMS[p.k], life(p)), size); }
+      var seen = ps.filter(shown), each = Math.min(BURST_N, Math.max(1, Math.floor(GLINTS_MAX / seen.length)));
       select(null);
-      ps.filter(shown).concat(ps.filter(function (p) { return !shown(p); }))
-        .forEach(function (p) { paid += harvest(p, size); });
+      seen.concat(ps.filter(function (p) { return !shown(p); })).forEach(function (p, i) {
+        paid += harvest(p, size, i < Math.min(seen.length, GLINTS_MAX) ? each : 0);
+      });
       persist();
       if (paid) renderGrid();   // prices the player can now pay lose their grey
       capped = before <= PICK_CAP && pickedOn(day) > PICK_CAP;
@@ -1463,9 +1569,9 @@
       showHint();
     }
     /** Pick placed plant p's crop (ripe), for pickCrops, which saves: pay what it's worth as far as today's PICK_CAP
-     *  goes, note the day on it (h) and the crops picked today (s.picked), float the coins up from it (gain; size: the
-     *  view's, as pickCrops read it) and take its glint away. What it paid. */
-    function harvest(p, size) {
+     *  goes, note the day on it (h) and the crops picked today (s.picked), take its glints away with a burst of n
+     *  (burst) and float the coins up from it (gain; size: the view's, as pickCrops read it). What it paid. */
+    function harvest(p, size, n) {
       var day = today(), worth = cropOf(ITEMS[p.k]);
       var before = pickedOn(day), pay = pickPay(before, worth);
       s.picked = { day: day, coins: before + worth };
@@ -1473,6 +1579,7 @@
       p.h = day;
       delete lives[p.id];
       drawPlaced(p);
+      burst(p, n);
       if (pay) gain(p, pay, size);
       return pay;
     }
@@ -1496,19 +1603,39 @@
       setTimeout(function () { up.remove(); }, 1100);
     }
     /** Whether placed plant p, showing frame f, is in the view as the camera has it now: any of its picture, or of the
-     *  room above it that a ready crop's glint takes (showCrop; a tap there picks it too, so it counts whether the
+     *  room above it that a ready crop's glints take (fillCrop; a tap there picks it too, so it counts whether a
      *  glint shows or not). size: the view's [w, h], which the caller reads once for many plants, as reading it after
      *  the page changed makes it lay itself out again. Pick all pays the plants in the view first (pickCrops), and a
-     *  plant out of it goes without what a pick shows at the plant (gain). */
+     *  plant out of it goes without what a pick shows at the plant (gain, and its burst). */
     function inView(p, f, size) {
       var half = Math.max(f.w * KG_SCALE, GLINT_W * GLINT_PX) / 2 * cam.s;
       var x = cam.x + (p.x + (f.w / 2 - f.ax) * KG_SCALE) * cam.s, top = cam.y + (p.y - f.ay * KG_SCALE) * cam.s;
       return x + half > 0 && x - half < size[0] && top + f.h * KG_SCALE * cam.s > 0 &&
         top + (GLINT_SINK - GLINT_W * GLINT_PX) * cam.s < size[1];
     }
+    /** Burst n glints out of placed plant p, just picked (BURST_N for a tap's pick; pickCrops shares them out over
+     *  many): from the middle of its crown, each its own way (kg-burst, to --kg-bx, --kg-by: var() costs a little style
+     *  work a frame, nothing for BURST_MS), in the world's sparks over every item, so they ride the zoom; taken away
+     *  after BURST_MS, or with the map shown (showMap). None with reduced motion, or for n 0. */
+    function burst(p, n) {
+      if (!shimmerOn || !n) return;
+      var f = stageFrame(ITEMS[p.k], life(p)), b = el("div", "kg-burst"), star = GLINT_W * GLINT_PX;
+      b.style.left = p.x + ((CROWN[0] + CROWN[1]) / 2 * f.w - f.ax) * KG_SCALE + "px";
+      b.style.top = p.y + ((CROWN[2] + CROWN[3]) / 2 * f.h - f.ay) * KG_SCALE + "px";
+      for (var i = 0; i < n; i++) {
+        var g = glint(), a = 2 * Math.PI * (i + 0.5 * Math.random()) / n;
+        var far = BURST_FAR[0] + (BURST_FAR[1] - BURST_FAR[0]) * Math.random();
+        g.style.left = g.style.top = -star / 2 + "px";
+        g.style.setProperty("--kg-bx", Math.cos(a) * far + "px");
+        g.style.setProperty("--kg-by", Math.sin(a) * far + "px");
+        b.append(g);
+      }
+      sparks.append(b);
+      setTimeout(function () { b.remove(); }, BURST_MS);
+    }
     // maps: the one shown (here), the label of a selected sign, and walking to another
     /** Show map `here`: its picture (loaded the first time it's shown), its placed items, and its name and dots in the
-     *  top bar; the items of the map shown before go. */
+     *  top bar; the items of the map shown before go, and its bursts. */
     function showMap() {
       var m = MAP[here];
       if (!bgs[here]) {
@@ -1523,6 +1650,7 @@
       for (var k in bgs) bgs[k].hidden = k !== here;
       for (var id in nodes) nodes[id].remove();
       nodes = {};
+      sparks.textContent = "";
       onHere().forEach(drawPlaced);
       showTop();
     }
@@ -1582,6 +1710,7 @@
       if (s.locked || !opened(s, key) || key === here) return;
       var from = here;
       gesture = null;         // the item a drag moved so far stays where it got to, saved with the walk below
+      hold(false);
       ui.confirm.hidden = true;
       select(null);
       here = key;
@@ -1962,6 +2091,10 @@
     var pts = {}, gesture = null;
     function count() { return Object.keys(pts).length; }
     function pair() { var k = Object.keys(pts); return [pts[k[0]], pts[k[1]]]; }
+    /** Hold the shimmer still while fingers move the map or an item (on: kg-moving), and let it go on after. Each frame
+     *  the page draws, the style of every glint still moving is worked out again, though the compositor moves it; a
+     *  pan draws every frame, while a held glint costs nothing. A tap doesn't hold it. */
+    function hold(on) { root.classList.toggle("kg-moving", on); }
     view.addEventListener("pointerdown", function (e) {
       if (e.target.closest(".kg-hint button, .kg-zoom, .kg-go")) return;
       view.setPointerCapture(e.pointerId);
@@ -1969,6 +2102,7 @@
       if (count() === 2) {
         var p = pair();
         gesture = { type: "pinch", d: Math.hypot(p[0].x - p[1].x, p[0].y - p[1].y), s: cam.s };
+        hold(true);
         return;
       }
       var hit = e.target.closest(".kg-item");
@@ -1990,7 +2124,10 @@
         zoomAt(gesture.s * d / gesture.d / cam.s, (p[0].x + p[1].x) / 2 - r.left, (p[0].y + p[1].y) / 2 - r.top);
         return;
       }
-      if (Math.hypot(e.clientX - gesture.sx, e.clientY - gesture.sy) > 8) gesture.moved = true;
+      if (!gesture.moved && Math.hypot(e.clientX - gesture.sx, e.clientY - gesture.sy) > 8) {
+        gesture.moved = true;
+        hold(true);
+      }
       if (!gesture.moved) return;
       if (gesture.type === "drag") {
         var w = toWorld(e.clientX, e.clientY), q = find(gesture.id);
@@ -2009,7 +2146,7 @@
       if (!pts[e.pointerId]) return;
       delete pts[e.pointerId];
       if (!gesture) return;
-      if (gesture.type === "pinch") { if (!count()) gesture = null; return; }
+      if (gesture.type === "pinch") { if (!count()) { gesture = null; hold(false); } return; }
       if (gesture.type === "drag" && gesture.moved) persist();
       if (!gesture.moved && e.type === "pointerup") {
         if (gesture.id != null) delete lives[gesture.id];   // its life now, if the garden stayed open past 04:00
@@ -2020,6 +2157,7 @@
         else select(null);
       }
       gesture = null;
+      hold(false);
     }
     view.addEventListener("pointerup", up);
     view.addEventListener("pointercancel", up);
@@ -2229,10 +2367,24 @@
     // the sway: angle, length, delay and transform-origin per plant (swing)
     ".kg-sway{animation:kg-sway 3s ease-in-out infinite alternate}",
     "@keyframes kg-sway{from{transform:skewX(calc(-1*var(--kg-a)))}to{transform:skewX(var(--kg-a))}}",
-    // a ready crop's glint (glint: its size and picture), in a box over its plant's picture that sways with it
-    // (showCrop: the box's size, and the glint's place)
+    // a ready crop's glints (glint: their size and picture), in a box over its plant's picture that sways with it
+    // (showCrop: the box's size): the still one (fillCrop: its place), or those that shimmer, each at its points in
+    // turn (fillCrop: its box, the crown, and its keyframes, pace and start), letting taps through as they drift over
+    // the plants around. A shimmering one scales about the star's middle; stopped by reduced motion, it stays at the
+    // top of the crown, in its middle
     ".kg-ripe{position:absolute;left:0;top:0}",
     ".kg-glint{position:absolute;background-repeat:no-repeat;image-rendering:pixelated}",
+    ".kg-shimmer{pointer-events:none;transform-origin:" + GLINT_W * GLINT_PX / 2 + "px " + GLINT_W * GLINT_PX / 2 +
+    "px;transform:translate(50%,0);animation-timing-function:linear;animation-iteration-count:infinite}",
+    ".kg-moving .kg-shimmer{animation-play-state:paused}",      // held while fingers move the map (hold)
+    shimmerKeys(),
+    // a pick's burst (burst): its glints fly out from the middle of the crown and fade. Over every item, under the
+    // butterflies, and taps go through
+    ".kg-sparks{position:absolute;left:0;top:0;z-index:2000;pointer-events:none}",
+    ".kg-burst{position:absolute}",
+    ".kg-burst>.kg-glint{animation:kg-burst .6s ease-out forwards}",
+    "@keyframes kg-burst{from{transform:translate(0,0) scale(.7)}40%{opacity:1}",
+    "to{opacity:0;transform:translate(var(--kg-bx),var(--kg-by)) scale(.4)}}",
     // a butterfly: above every item (an item's z-index is its y, at most WORLD_H), under the garden's UI
     // (outside the world); taps go through it. Size, sheet and place per butterfly (newBug, drawBug)
     ".kg-bug{position:absolute;left:0;top:0;z-index:2000;background-repeat:no-repeat;image-rendering:pixelated;",
@@ -2316,12 +2468,14 @@
     ".kg-shop-min .kg-badge{margin:4px 0 0;padding:3px 0;text-combine-upright:all}",    // the count upright, below the name
     ".kg-shop-min .kg-confirm{position:fixed;left:8px;right:62px;bottom:8px}",
     ".kg-shop-min .kg-btn.kg-fold{right:7px}}",
-    "@media (prefers-reduced-motion:reduce){.kg-plus,.kg-gain,.kg-pop,.kg-toast,.kg-sway{animation:none}.kg-plus{opacity:0}.kg-bug{display:none}.kg-veil{display:none}",
+    "@media (prefers-reduced-motion:reduce){.kg-plus,.kg-gain,.kg-pop,.kg-toast,.kg-shimmer,.kg-sway{animation:none}.kg-plus{opacity:0}",
+    ".kg-burst,.kg-bug{display:none}.kg-veil{display:none}",
     ".kg-switch::after,.kg-bar{transition:none}}"
   ].join("");
 
   window.KanpekiGarden = { mount: mount, load: load, save: save, earn: earn, life: lifeOf, swayOf: swayOf,
-    butterflies: butterflies, blooms: blooms, cropOf: cropOf, items: ITEMS, text: TEXT, maps: MAPS };
+    butterflies: butterflies, blooms: blooms, cropOf: cropOf, glintShares: glintShares, items: ITEMS, text: TEXT,
+    maps: MAPS };
 
   // On a card: mount into #kg in AnkiDroid's study screen only (ankidroid-reviewer.js defines
   // ankidroid.userAction; the previewer and desktop Anki do not).
