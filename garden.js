@@ -402,19 +402,26 @@
    *  styles (AnkiDroid's study screen has a 12 px grey one) would show through a scrollbar-width alone. The thumb
    *  sits in the box, not in n, so it stays put while n's content scrolls, and taps go through it. On each scroll it
    *  is sized and placed from n's scrollTop, scrollHeight and clientHeight and shown, and BAR_REST ms after the last
-   *  one it fades out; with nothing to scroll it stays hidden. Returns {box, stop}: stop() removes its listener and
-   *  timer (the garden closing). */
+   *  one it fades out; with nothing to scroll it stays hidden. Returns {box, fit, stop}: fit() sizes and places a
+   *  shown thumb again after n's size or content changed without a scroll (nothing while it's hidden), and stop()
+   *  removes its listener and timer (the garden closing). */
   function scrollBar(n, cls) {
     var box = el("div", "kg-scroll " + cls), bar = el("div", "kg-bar"), timer = 0;
+    bar.setAttribute("aria-hidden", "true");
     box.append(n, bar);
-    function show() {
+    /** Size and place the thumb; false if there's nothing to scroll. */
+    function place() {
       var h = n.clientHeight, all = n.scrollHeight;
-      if (all <= h) { hide(); return; }
+      if (all <= h) return false;
       var track = h - 2 * BAR_END, len = Math.min(track, Math.max(BAR_MIN, track * h / all));
       // the share scrolled, kept to 0..1 for an overscroll's bounce
       var at = Math.max(0, Math.min(1, n.scrollTop / (all - h)));
       bar.style.height = len + "px";
       bar.style.transform = "translateY(" + at * (track - len) + "px)";
+      return true;
+    }
+    function show() {
+      if (!place()) { hide(); return; }
       bar.classList.add("kg-bar-on");
       clearTimeout(timer);
       timer = setTimeout(hide, BAR_REST);
@@ -425,7 +432,8 @@
       bar.classList.remove("kg-bar-on");
     }
     n.addEventListener("scroll", show, { passive: true });
-    return { box: box, stop: function () { n.removeEventListener("scroll", show); hide(); } };
+    return { box: box, fit: function () { if (timer && !place()) hide(); },
+      stop: function () { n.removeEventListener("scroll", show); hide(); } };
   }
   /** A spot for an item's anchor that keeps its picture on the map. */
   function onMap(item, x, y) {
@@ -534,9 +542,9 @@
       devSet.append(el("span", "kg-devset-h", "テスト"), devBtn, fillBtn, dayBack, dayLabel, dayOn);
       panel.append(devSet);
     }
-    // the panel and the shop's grid each scroll with a thin thumb (scrollBar)
-    var bars = [scrollBar(panel, "kg-panel-box")];
-    menu.append(bars[0].box);
+    // the panel, the shop's grid and its folded sideways tab strip each scroll with a thin thumb (scrollBar)
+    var panelBar = scrollBar(panel, "kg-panel-box");
+    menu.append(panelBar.box);
 
     // map
     var view = el("div", "kg-view");
@@ -572,8 +580,9 @@
     // the fold button: outside the tabs, which renderTabs rebuilds, so it stays put while they scroll
     var foldBtn = el("button", "kg-btn kg-fold");
     foldBtn.type = "button";
-    bars.push(scrollBar(grid, "kg-grid-box"));
-    shop.append(tabs, foldBtn, bars[1].box, ui.confirm);
+    var tabsBar = scrollBar(tabs, "kg-tabs-box"), gridBar = scrollBar(grid, "kg-grid-box");
+    var bars = [panelBar, tabsBar, gridBar];
+    shop.append(tabsBar.box, foldBtn, gridBar.box, ui.confirm);
 
     root.append(top, view, shop, menu);
     document.body.append(root);
@@ -919,7 +928,6 @@
         grid.append(el("p", "kg-empty", tab === "もちもの"
           ? "まだ なにも もっていないよ。おみせで かってね。"
           : "ここには なにも ないよ。"));
-        return;
       }
       list.forEach(function (item) {
         var b = el("button", "kg-card");
@@ -940,6 +948,8 @@
         }
         grid.append(b);
       });
+      tabsBar.fit();
+      gridBar.fit();
     }
     function askBuy(item) {
       var c = confirmBox();
@@ -1021,6 +1031,7 @@
       sideways = sidewaysNow();
       showFold();
       refit();
+      bars.forEach(function (b) { b.fit(); });
       if (!folded) return;
       if (sideways === was) { if (!sideways && filled && cam.s < fillScale()) fillHeight(); }
       else if (!sideways) { if (wholeShown()) fillHeight(); }
@@ -1428,6 +1439,7 @@
     // still scroll sideways by touch
     ".kg-tabs{display:flex;gap:4px;padding:6px 52px 0 6px;overflow-x:auto;background:var(--kg-wood);scrollbar-width:none}",
     ".kg-tabs::-webkit-scrollbar{display:none}",
+    ".kg-tabs-box{flex:none}",
     ".kg-tab{color:var(--kg-ink);position:relative;flex:none;padding:6px 12px;border:2px solid var(--kg-wood-dark);border-bottom:0;",
     "border-radius:6px 6px 0 0;background:var(--kg-paper-2);cursor:pointer;font-weight:700}",
     ".kg-tab[aria-selected=true]{background:var(--kg-paper)}",
@@ -1467,7 +1479,8 @@
     // folded sideways: a 54 px strip of tabs written top to bottom, under the fold button; a message floats over
     // the bottom of the map, left of the strip
     ".kg-shop-min .kg-shop{width:54px;height:calc(100% - 56px)}",
-    ".kg-shop-min .kg-tabs{flex-direction:column;align-items:flex-end;height:100%;box-sizing:border-box;padding:46px 0 8px 6px;",
+    ".kg-shop-min .kg-tabs-box{flex:1}",
+    ".kg-shop-min .kg-tabs{flex-direction:column;align-items:flex-end;flex:1;min-height:0;box-sizing:border-box;padding:46px 0 8px 6px;",
     "overflow-x:hidden;overflow-y:auto}",
     ".kg-shop-min .kg-tab{writing-mode:vertical-rl;padding:10px 6px;border-right:0;border-radius:6px 0 0 6px}",
     ".kg-shop-min .kg-badge{margin:4px 0 0;padding:3px 0;text-combine-upright:all}",    // the count upright, below the name

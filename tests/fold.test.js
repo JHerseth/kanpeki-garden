@@ -57,7 +57,7 @@ test("the fold button: in the shop beside the tabs, ▼ open and ▲ folded upri
   const { root } = open({}, UPRIGHT);
   const b = btn(root), shop = byClass(root, "kg-shop")[0], tabs = byClass(root, "kg-tabs")[0];
   assert.strictEqual(b.parent, shop);
-  assert.strictEqual(shop.children.indexOf(b), shop.children.indexOf(tabs) + 1);
+  assert.strictEqual(shop.children.indexOf(b), shop.children.indexOf(tabs.parent) + 1);    // tabs in their scrollBar box
   assert.deepStrictEqual([b.tagName, b.type, folded(root)], ["button", "button", false]);
   assert.deepStrictEqual([b.textContent, b.attrs["aria-label"], b.attrs["aria-expanded"]], ["▼", "おみせを たたむ", "true"]);
   b.click();

@@ -1,4 +1,4 @@
-// The shop's grid and the settings panel scroll with a thin thumb that shows while they scroll and fades out a
+// The shop's grid, its folded sideways tab strip and the settings panel scroll with a thin thumb that shows while they scroll and fades out a
 // second after, in place of their native bars, which the CSS hides (also where the page styles ::-webkit-scrollbar).
 // Run: node --test tests/*.test.js
 "use strict";
@@ -38,6 +38,14 @@ test("the CSS: the grid and the panel hide their native bars; the thumb is thin,
   assert.strictEqual(rule(".kg-panel-box"), "width:min(100%,360px);max-height:100%");
   assert.ok(!/(^|;)(width|max-height):/.test(rule(".kg-panel")));
   assert.strictEqual(rule(".kg-shop-min .kg-grid-box"), "display:none");
+  // the tab row's box keeps its height; folded sideways it's the strip, and the tabs fill it and scroll in it
+  assert.strictEqual(rule(".kg-tabs-box"), "flex:none");
+  const media = "@media (orientation:landscape) and (max-height:500px){", side = css.slice(css.indexOf(media) + media.length);
+  assert.match(side, /(^|\})\.kg-shop-min \.kg-tabs-box\{flex:1\}/);
+  const strip = /(^|\})\.kg-shop-min \.kg-tabs\{([^}]*)\}/.exec(side)[2];
+  assert.match(strip, /(^|;)flex:1;min-height:0;/);
+  assert.match(strip, /(^|;)overflow-y:auto(;|$)/);
+  assert.ok(!/(^|;)height:/.test(strip));
   const bar = rule(".kg-bar");
   for (const d of ["position:absolute", "top:3px", "right:3px", "width:4px", "background:var(--kg-wood)", "opacity:0",
     "pointer-events:none", "transition:opacity .3s"]) assert.match(bar, new RegExp("(^|;)" + esc(d) + "(;|$)"));
@@ -46,17 +54,20 @@ test("the CSS: the grid and the panel hide their native bars; the thumb is thin,
   assert.match(css, /@media \(prefers-reduced-motion:reduce\)\{(?:[^{}]*\{[^}]*\})*?[^{}]*\.kg-bar\{transition:none\}/);
 });
 
-test("the grid and the panel each sit in a box with a hidden thumb, and listen to scrolls passively", () => {
+test("the tabs, the grid and the panel each sit in a box with a hidden thumb, and listen to scrolls passively", () => {
   const root = openGarden(page({}));
   const shop = byClass(root, "kg-shop")[0], grid = byClass(root, "kg-grid")[0], panel = byClass(root, "kg-panel")[0];
+  const tabs = byClass(root, "kg-tabs")[0];
   assert.deepStrictEqual(shop.children.map((n) => n.className.split(" ").pop()),
-    ["kg-tabs", "kg-fold", "kg-grid-box", "kg-confirm"]);
+    ["kg-tabs-box", "kg-fold", "kg-grid-box", "kg-confirm"]);
+  assert.strictEqual(tabs.parent.className, "kg-scroll kg-tabs-box");
   assert.strictEqual(grid.parent.className, "kg-scroll kg-grid-box");
   assert.strictEqual(panel.parent.className, "kg-scroll kg-panel-box");
   assert.ok(panel.parent.parent.classList.contains("kg-menu"));
-  for (const n of [grid, panel]) {
+  for (const n of [tabs, grid, panel]) {
     assert.deepStrictEqual(n.parent.children, [n, thumbOf(n)]);
     assert.ok(!on(thumbOf(n)));
+    assert.strictEqual(thumbOf(n).attrs["aria-hidden"], "true");
     assert.strictEqual(n.on.scroll.length, 1);
     assert.strictEqual(n.how.get(n.on.scroll[0]).passive, true);
   }
@@ -130,5 +141,43 @@ test("closing the garden removes the scroll listeners and their timers", () => {
   assert.ok(!root.parent);
   assert.deepStrictEqual(grid.on.scroll, []);
   assert.deepStrictEqual(panel.on.scroll, []);
+  assert.deepStrictEqual(win.timers, {});
+});
+
+test("folded sideways, the tab strip scrolls with the thumb; the open tab row, scrolled sideways, shows none", () => {
+  const win = page({ "kanpekikun-garden-opts": JSON.stringify({ shop: false }) }, { screen: [740, 360] });
+  const root = openGarden(win);
+  const tabs = byClass(root, "kg-tabs")[0], bar = thumbOf(tabs);
+  assert.ok(root.classList.contains("kg-shop-min"));
+  scroll(tabs, 100, 538);
+  assert.ok(on(bar));
+  assert.strictEqual(bar.style.height, String(194 * 200 / 538) + "px");
+  win.wait(1000);
+  assert.ok(!on(bar));
+  byClass(root, "kg-fold")[0].click();
+  scroll(tabs, 0, 200);        // open, the row only overflows sideways
+  assert.ok(!on(bar));
+});
+
+test("a shown thumb follows a change without a scroll: fewer items hide it, a turn of the phone resizes it", () => {
+  const win = page({});
+  const root = openGarden(win);
+  const grid = byClass(root, "kg-grid")[0], bar = thumbOf(grid);
+  scroll(grid, 300);
+  assert.strictEqual(bar.style.height, "48.5px");
+  grid.size = () => [300, 400];          // the phone turned: a taller grid, the same content
+  win.turn(360, 740);
+  assert.ok(on(bar));
+  assert.strictEqual(bar.style.height, String(394 * 400 / 800) + "px");
+  assert.strictEqual(Object.keys(win.timers).length, 1);   // the second still counts from the scroll
+  win.wait(1000);
+  assert.ok(!on(bar));
+  // at rest a change does nothing
+  win.turn(740, 360);
+  assert.strictEqual(bar.style.height, String(394 * 400 / 800) + "px");
+  scroll(grid, 300);
+  grid.scrollHeight = 150;               // another tab's fewer items, all in view
+  byClass(root, "kg-tab").find((n) => n.textContent === "かざり").click();
+  assert.ok(!on(bar));
   assert.deepStrictEqual(win.timers, {});
 });
