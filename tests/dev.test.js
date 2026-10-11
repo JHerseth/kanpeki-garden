@@ -31,7 +31,7 @@ test("with data-dev=\"1\": +100 in the settings' test section adds 100 coins, sa
   assert.strictEqual(b[0].parent, set);
   assert.strictEqual(set.parent, panel);
   assert.strictEqual(panel.children[panel.children.length - 1], set);          // last, under vacation
-  assert.deepStrictEqual(set.children.map((n) => n.textContent), ["テスト", "+100", "−1日", "", "+1日"]);
+  assert.deepStrictEqual(set.children.map((n) => n.textContent), ["テスト", "+100", "+150", "−1日", "", "+1日"]);
   assert.strictEqual(byClass(root, "kg-devrow").length, 0);
   assert.strictEqual(b[0].textContent, "+100");
   assert.ok(!b[0].disabled);

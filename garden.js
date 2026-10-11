@@ -5,9 +5,9 @@
  *     <script src="_garden.js"></script>
  * data-kg="garden": coin chip that opens the garden; "toast": only a short "+1" on the card.
  * data-dev="1" (only in a test profile's templates, never in the ones the player studies with): the garden's
- * settings get a 「テスト」 section: 「+100」 adds coins without counting them in earned, and 「−1日」「+1日」
- * move the garden's day (the test day offset; see today()). Without it nothing changes, and a stored day offset
- * is never read.
+ * settings get a 「テスト」 section: 「+100」 adds coins without counting them in earned, 「+150」 places 150 mature
+ * plants for free (a performance test), and 「−1日」「+1日」 move the garden's day (the test day offset; see
+ * today()). Without it nothing changes, and a stored day offset is never read.
  *
  * Coins and the garden live in AnkiDroid's localStorage (Settings → Advanced → localStorage in
  * Study Screen), so they stay on the phone and are not synced. A card pays one coin per day
@@ -62,6 +62,7 @@
   var BASE = window.KG_BASE || "";          // media folder; Anki serves media next to the card
   var BG = BASE + "_garden_bg.webp";
   var WORLD_W = 2000, WORLD_H = 1116;
+  var POND = [1655, 685, 270, 180];         // the background's pond, round its stones: centre x, y and radii x, y
   var TABS = ["もちもの", "花", "はちうえ", "やさい", "草木", "木", "かざり"];
   var ITEMS = {};
   KG_CATALOG.forEach(function (e) {
@@ -487,17 +488,17 @@
     vacBtn.append(el("span", null, "おやすみ"), el("span", "kg-switch"));
     vacBtn.disabled = !!s.locked;
     panel.append(head, prefList, stillNote, vacBtn);
-    // test controls, on a dev slot only: coins without reviews (not counted in earned), and the day moved back
-    // or on; the label shows the offset, and a tap on it resets it
+    // test controls, on a dev slot only: coins without reviews (not counted in earned), 150 free plants, and the
+    // day moved back or on; the label shows the offset, and a tap on it resets it
     if (dev) {
       var devSet = el("div", "kg-devset");
       devSet.setAttribute("role", "group");
       devSet.setAttribute("aria-label", "テスト");
-      var devBtn = devButton("+100", "テスト：コイン +100");
+      var devBtn = devButton("+100", "テスト：コイン +100"), fillBtn = devButton("+150", "テスト：しょくぶつ +150");
       var dayBack = devButton("−1日", "テスト：1日 もどす"), dayOn = devButton("+1日", "テスト：1日 すすめる");
       var dayLabel = devButton("", "");
       dayLabel.classList.add("kg-dev-day");
-      devSet.append(el("span", "kg-devset-h", "テスト"), devBtn, dayBack, dayLabel, dayOn);
+      devSet.append(el("span", "kg-devset-h", "テスト"), devBtn, fillBtn, dayBack, dayLabel, dayOn);
       panel.append(devSet);
     }
     menu.append(panel);
@@ -1064,6 +1065,26 @@
       s.coins += 100;
       persist();
       renderGrid();           // prices the player can now pay lose their grey
+    });
+    // 「+150」: 150 plants at once, for a performance test: picked at random from every plant with a life cycle but
+    // the hanging ones (whose anchor is below the hook: ay > h), at random spots on the map out of the pond. Each
+    // joins the life cycle today at its mature stage, as enrol has a plant join; nothing is paid or taken from もちもの
+    if (dev) fillBtn.addEventListener("click", function () {
+      if (s.locked) return;
+      var kinds = KG_CATALOG.map(function (e) { return ITEMS[e[0]]; }).filter(function (i) {
+        return i.sold && i.frames.length > 1 && i.frames[0].ay <= i.frames[0].h;
+      });
+      var day = today();
+      for (var n = 0; n < 150; n++) {
+        var item = kinds[Math.floor(Math.random() * kinds.length)], at;
+        do at = onMap(item, Math.random() * WORLD_W, Math.random() * WORLD_H);
+        while (Math.pow((at.x - POND[0]) / POND[2], 2) + Math.pow((at.y - POND[1]) / POND[3], 2) < 1);
+        var p = { id: s.next++, k: item.key, x: at.x, y: at.y, t: day, g: item.frames.length - 3 };
+        s.placed.push(p);
+        drawPlaced(p);
+      }
+      persist();
+      flutter(true);          // more flowers, more butterflies
     });
 
     // the test day: by days on from the offset now, or null for the real day. Everything that depends on the
