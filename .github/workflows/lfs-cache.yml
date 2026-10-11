@@ -9,6 +9,7 @@ on:
     paths:
       - "art/stages/**"
       - "art/decor/**"
+      - "art/maps/**"
       - ".gitattributes"
       - ".github/actions/lfs-art/**"     # a new cache key
       - ".github/workflows/lfs-cache.yml"
