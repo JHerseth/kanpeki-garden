@@ -1265,9 +1265,10 @@
     "75%{opacity:1}to{opacity:0}}",
     "@keyframes kg-up{from{opacity:0;transform:translateY(6px)}20%{opacity:1}to{opacity:0;transform:translateY(-26px)}}",
     "html.kg-open,html.kg-open body{overflow:hidden}",
+    // edge to edge, with no room for the phone's bars: on a card the web view sits between AnkiDroid's toolbar and
+    // its answer buttons, never under the bars, though it still reports their safe-area insets
     ".kg-root{position:fixed;inset:0;z-index:9500;display:flex;flex-direction:column;background:var(--kg-shade);",
-    "color:var(--kg-ink);font-size:15px;line-height:1.35;-webkit-user-select:none;user-select:none;",
-    "padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}",
+    "color:var(--kg-ink);font-size:15px;line-height:1.35;-webkit-user-select:none;user-select:none}",
     ".kg-root button{font:inherit}",
     ".kg-root [hidden]{display:none!important}",
     ".kg-top{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--kg-wood);",
@@ -1293,8 +1294,7 @@
     "%3Ccircle cx='12' cy='12' r='7.5'/%3E%3Ccircle cx='12' cy='12' r='3' fill='%23f4e6c4'/%3E%3C/svg%3E\") center/contain no-repeat}",
     // the settings: the garden dimmed, and a panel under the gear; the vacation question goes over it (kg-over)
     ".kg-menu{position:absolute;inset:0;z-index:6;display:flex;align-items:flex-start;justify-content:flex-end;",
-    "padding:calc(env(safe-area-inset-top,0px) + 56px) calc(env(safe-area-inset-right,0px) + 8px) ",
-    "calc(env(safe-area-inset-bottom,0px) + 8px) calc(env(safe-area-inset-left,0px) + 8px);background:rgba(20,30,15,.45)}",
+    "padding:56px 8px 8px;background:rgba(20,30,15,.45)}",
     ".kg-panel{box-sizing:border-box;display:flex;flex-direction:column;gap:8px;width:min(100%,360px);max-height:100%;",
     "overflow-y:auto;overscroll-behavior:contain;padding:8px 10px 10px;background:var(--kg-paper);",
     "border:3px solid var(--kg-wood-dark);border-radius:8px;box-shadow:0 4px 0 var(--kg-wood-dark)}",
@@ -1356,7 +1356,10 @@
     ".kg-zbtn{width:40px;min-height:40px;padding:0;font-size:20px}",
     ".kg-shop{position:relative;display:flex;flex-direction:column;height:clamp(170px,40%,340px);background:var(--kg-paper);",
     "border-top:3px solid var(--kg-wood-dark)}",
+    // no scrollbar under the tabs, also where the page styles ::-webkit-scrollbar (AnkiDroid's study screen does); they
+    // still scroll sideways by touch
     ".kg-tabs{display:flex;gap:4px;padding:6px 52px 0 6px;overflow-x:auto;background:var(--kg-wood);scrollbar-width:none}",
+    ".kg-tabs::-webkit-scrollbar{display:none}",
     ".kg-tab{color:var(--kg-ink);position:relative;flex:none;padding:6px 12px;border:2px solid var(--kg-wood-dark);border-bottom:0;",
     "border-radius:6px 6px 0 0;background:var(--kg-paper-2);cursor:pointer;font-weight:700}",
     ".kg-tab[aria-selected=true]{background:var(--kg-paper)}",
