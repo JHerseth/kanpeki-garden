@@ -28,4 +28,4 @@ Theme: <one of the themes below>
 
 Other themes that fit the art and haven't been made yet: a Japanese garden (raked gravel, stepping stones, a koi pond with a stone lantern, maples and bamboo); an orchard hillside (gentle terraces with low stone walls, a grassy slope, a stone well); a seaside garden (a sandy path, dune grass, the sea in one corner, a driftwood fence); an autumn clearing (orange and red trees at the edges, green ground).
 
-A new map's exits should line up with a path, stairs or a bridge at its edge, because that's where the game puts the sign to the next garden.
+A new map should have paths, stairs or a bridge at its edges: that's where the player is likely to put the signs to the other gardens.

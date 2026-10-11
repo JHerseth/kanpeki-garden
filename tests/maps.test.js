@@ -192,14 +192,23 @@ test("damaged signs: only to open maps, never on their own map, one of each on a
   assert.ok(!("f" in flip));
 });
 
-test("a sound v: 3 save loads without a write", () => {
-  const stored = stored3({ maps: ["riverside"], at: "riverside", next: 5,
-    placed: [rose(1), rose(2, "riverside"), sign(3, "riverside"), sign(4, "home", "riverside", 900, 900, { f: 1 })] });
+test("a sound v: 3 save loads without a write; one whose only damage is a sign is written", () => {
+  // the same sign (waterfall's) on two maps: one of each per map, so both stay
+  const stored = stored3({ maps: ["riverside", "waterfall"], at: "riverside", next: 7,
+    placed: [rose(1), rose(2, "riverside"), sign(3, "riverside"), sign(4, "home", "riverside", 900, 900, { f: 1 }),
+      sign(5, "waterfall"), sign(6, "waterfall", "riverside")] });
   let writes = 0;
   const watched = new Proxy(stored, { set(t, k, v) { writes++; t[k] = v; return true; } });
   const s = page(watched, { now: NOW }).KanpekiGarden.load();
   assert.strictEqual(writes, 0);
-  assert.strictEqual(s.placed.length, 4);
+  assert.deepStrictEqual(plain(s.placed.map((p) => p.id)), [1, 2, 3, 4, 5, 6]);
+  // a riverside sign by the river, on its own map: dropped, and the save written for it
+  const bad = stored3({ maps: ["riverside"], next: 3, placed: [rose(1), sign(2, "riverside", "riverside")] });
+  const badWatched = new Proxy(bad, { set(t, k, v) { writes++; t[k] = v; return true; } });
+  page(badWatched, { now: NOW }).KanpekiGarden.load();
+  assert.strictEqual(writes, 1);
+  assert.deepStrictEqual(saved(bad).placed.map((p) => p.id), [1]);
+  writes = 0;
   // the trap counts: a v: 2 save is written once
   page(new Proxy({ [KEY]: stored[KEY].replace('"v":3', '"v":2') }, { set(t, k, v) { writes++; t[k] = v; return true; } }),
     { now: NOW }).KanpekiGarden.load();
@@ -277,7 +286,9 @@ test("at exactly its price a sign is bought: 0 left, the map open, earned the sa
   // the bought sign is in もちもの for good, but this map has it now; the home sign can't go home
   tabNamed(root, "もちもの").click();
   assert.deepStrictEqual(cards(root), ["わたしのにわ の かんばんいまの にわだよ", "かわべの はらっぱ の かんばんもう おいてあるよ"]);
-  assert.strictEqual(byClass(root, "kg-empty").length, 0, "never empty: the home sign is always there");
+  // nothing else in the bag, and no sign that can go here: it still points to the shop, above the signs
+  assert.strictEqual(byClass(root, "kg-empty")[0].textContent, "まだ なにも もっていないよ。おみせで かってね。");
+  assert.ok(byClass(root, "kg-card").every((c) => c.attrs["aria-disabled"] === "true"));
   assert.ok(byClass(root, "kg-card").every((c) => c.classList.contains("kg-off")));
 });
 
@@ -308,8 +319,32 @@ test("「かう」 checks the coins again when tapped: a question left open afte
   roseBuy.click();                                          // the old question's button, fired anyway
   assert.deepStrictEqual([saved(stored).coins, saved(stored).inv], [10, {}]);
   assert.strictEqual(confirm(root).textContent, "ピンクのバラあと 10 コイン たりないよ。カードを がんばろう！OK");
-  signBuy.click();                                          // and a sign is never paid for twice
-  assert.deepStrictEqual([saved(stored).coins, saved(stored).maps], [10, ["riverside"]]);
+  // a sign is never paid for twice, with coins enough for it again
+  const rich = stored3({ coins: 2000 });
+  const r2 = openGarden(page(rich, { now: NOW }));
+  tabNamed(r2, "とち").click();
+  card(r2, "かわべの はらっぱ の かんばん").click();
+  const again = byClass(confirm(r2), "kg-btn-go")[0];
+  again.click();
+  again.click();
+  assert.deepStrictEqual([saved(rich).coins, saved(rich).maps], [1500, ["riverside"]]);
+  tabNamed(r2, "とち").click();
+  assert.strictEqual(card(r2, "かわべの はらっぱ の かんばん").attrs["aria-disabled"], "true");     // owned
+});
+
+test("「かう」's check again is at the exact price: coins left just enough still buy, one short don't", () => {
+  for (const [coins, bought] of [[520, true], [519, false]]) {
+    const stored = stored3({ coins });
+    const root = openGarden(page(stored, { now: NOW }));
+    tabNamed(root, "花").click();
+    card(root, "ピンクのバラ").click();
+    const roseBuy = byClass(confirm(root), "kg-btn-go")[0];
+    tabNamed(root, "とち").click();
+    card(root, "かわべの はらっぱ の かんばん").click();
+    byClass(confirm(root), "kg-btn-go")[0].click();      // 20 or 19 left
+    roseBuy.click();
+    assert.deepStrictEqual([saved(stored).coins, saved(stored).inv], bought ? [0, { rose_pink: 1 }] : [19, {}], String(coins));
+  }
 });
 
 test("owned signs never run out: one of each per map, never on its own map, greyed with why where they can't go", () => {
@@ -329,9 +364,9 @@ test("owned signs never run out: one of each per map, never on its own map, grey
   assert.deepStrictEqual(why(), [["わたしのにわ の かんばん", "いまの にわだよ"], ["かわべの はらっぱ の かんばん", "もう おいてあるよ"],
     ["たきの たかだい の かんばん", "もう おいてあるよ"]]);
   assert.deepStrictEqual(saved(stored).placed.map((p) => p.k), ["sign_riverside", "sign_waterfall"]);
-  // on the riverside, its own sign can't go, the others can
+  // on the riverside, its own sign can't go, the others can: the bag, left open, shows it after the walk
   walkBy(root, 1);
-  tabNamed(root, "もちもの").click();
+  assert.strictEqual(byClass(root, "kg-empty").length, 0, "a sign can go here: no need to point to the shop");
   assert.deepStrictEqual(why(), [["わたしのにわ の かんばん", null], ["かわべの はらっぱ の かんばん", "いまの にわだよ"],
     ["たきの たかだい の かんばん", null]]);
   const bag = byClass(root, "kg-tab").find((n) => /もちもの/.test(n.textContent));
@@ -349,6 +384,7 @@ test("no label until a sign is selected; the first tap selects it, with its labe
   touch(root, 2);
   assert.deepStrictEqual(outlined(root), [2]);
   assert.strictEqual(label(root).textContent, "かわべの はらっぱ へ ▶︎");
+  assert.strictEqual(label(root).attrs["aria-label"], "かわべの はらっぱ へ いく");
   assert.strictEqual(label(root).parent, byClass(root, "kg-view")[0]);     // over the map, at screen size
   assert.strictEqual(hint(root).textContent, "ゆびで うごかせるよ↔しまうOK");
   assert.strictEqual(button(root, "↔").attrs["aria-label"], "やじるしの むきを かえる");
@@ -682,6 +718,7 @@ test("data-lang=\"en\": the Land tab, the signs, their label and why one can't g
   assert.deepStrictEqual(cards(root), ["Sign to My gardenYou're in this garden", "Sign to Riverside meadowAlready here"]);
   touch(root, 1);
   assert.strictEqual(label(root).textContent, "Riverside meadow ▶︎");
+  assert.strictEqual(label(root).attrs["aria-label"], "Go to Riverside meadow");
   assert.strictEqual(hint(root).textContent, "Drag it to move it↔Put awayOK");
   assert.strictEqual(button(root, "↔").attrs["aria-label"], "Turn the arrow around");
   button(root, "↔").click();

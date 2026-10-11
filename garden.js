@@ -159,11 +159,13 @@
       // and its hint's flip; why one in もちもの can't go on this map; one bought in the とち tab
       sign: function (name) { return name + " の かんばん"; },
       goTo: function (name, left) { return left ? "◀\uFE0E " + name + " へ" : name + " へ ▶\uFE0E"; },
+      goLabel: function (name) { return name + " へ いく"; },
       flip: "やじるしの むきを かえる",
       signHere: "いまの にわだよ",
       signPlaced: "もう おいてあるよ",
       owned: "もっているよ",
       // the shop
+      emptyBag: "まだ なにも もっていないよ。おみせで かってね。",
       emptyTab: "ここには なにも ないよ。",
       buyAsk: function (price, left) { return "¤" + price + " で かう？ のこりは " + left; },
       buy: "かう",
@@ -217,10 +219,12 @@
       ok: "OK",
       sign: function (name) { return "Sign to " + name; },
       goTo: function (name, left) { return left ? "◀\uFE0E " + name : name + " ▶\uFE0E"; },
+      goLabel: function (name) { return "Go to " + name; },
       flip: "Turn the arrow around",
       signHere: "You're in this garden",
       signPlaced: "Already here",
       owned: "Owned",
+      emptyBag: "Your bag is empty. Buy something in the shop!",
       emptyTab: "Nothing here.",
       buyAsk: function (price, left) { return "Buy for ¤" + price + "? You'll have " + left + " left."; },
       buy: "Buy",
@@ -273,9 +277,9 @@
   // ---- state -------------------------------------------------------------------------------
   /* Save, v: 3:
    *   coins, earned; seen {cardId: day it last paid}; inv {key: count}; next: the next placed id;
-   *   placed [{id, k, x, y, m?, f?, t?, g?, dead?}]: m is the map it was placed on (MAPS' key; left out for home);
-   *     a map's sign is k: sign_<map>, with f: 1 while its arrow points left (flipped); t is the day a plant joined the life cycle (placed, or
-   *     enrolled), g the stage it joined at (0 if left out), dead the day it was first found dead, so it
+   *   placed [{id, k, x, y, m?, f?, t?, g?, dead?}]: m is the map it was placed on (MAPS' key; left out for
+   *     home); a map's sign is k: sign_<map>, with f: 1 while its arrow points left (flipped); t is the day a
+   *     plant joined the life cycle (placed, or enrolled), g the stage it joined at (0 if left out), dead the day it was first found dead, so it
    *     stays dead even if the phone's clock goes back. No t: outside the life cycle (decorations, and
    *     plants without stage art, which stay at their one frame until their strip comes; see enrol).
    *   days {day: flags}: REVIEWED for a day with reviews (made while vacation was off), VACATION for a
@@ -358,9 +362,9 @@
       s.placed.forEach(function (p) { if (p && typeof p === "object") home(p, "m"); });
       var seen = {};
       s.placed = s.placed.filter(function (p) {
-        var to = p && typeof p === "object" && signTo(p.k);
+        var to = p && typeof p === "object" && typeof p.k === "string" && signTo(p.k);
         if (!to) return true;
-        var spot = onMapOf(p) + " " + p.k;
+        var spot = onMapOf(p) + " " + p.k;          // one of each sign per map: the same sign on two maps is fine
         if (!opened(s, to) || to === onMapOf(p) || seen[spot]) { changed = true; return false; }
         seen[spot] = true;
         if ("f" in p && p.f !== 1) { delete p.f; changed = true; }
@@ -1258,6 +1262,7 @@
       if (!p) return;
       var to = MAP[signTo(p)];
       ui.go.textContent = T.goTo(T.maps[to.n], !!p.f);
+      ui.go.setAttribute("aria-label", T.goLabel(T.maps[to.n]));
       ui.go.dataset.to = to.key;
       goSize = [ui.go.offsetWidth || 0, ui.go.offsetHeight || 0];
       placeGo();
@@ -1290,8 +1295,7 @@
     function walk(key) {
       if (s.locked || !opened(s, key) || key === here) return;
       var from = here;
-      if (gesture && gesture.type === "drag" && gesture.moved) persist();    // the item moved so far stays where it is
-      gesture = null;
+      gesture = null;         // the item a drag moved so far stays where it got to, saved with the walk below
       ui.confirm.hidden = true;
       select(null);
       here = key;
@@ -1366,8 +1370,13 @@
         ? Object.keys(s.inv).map(function (k) { return ITEMS[k]; }).filter(Boolean)
         : tab === "とち" ? signs.filter(function (i) { return i.to !== "home" && opened(s, MAPS[MAP[i.to].n - 1].key); })
         : KG_CATALOG.map(function (e) { return ITEMS[e[0]]; }).filter(function (i) { return i.tab === tab && i.sold; });
-      // the bag is never empty: the home sign is always in it
-      if (tab === "もちもの") list = list.concat(signs.filter(function (i) { return opened(s, i.to); }));
+      // the owned signs go after the rest of the bag (so it's never empty: the home sign is always there); with nothing
+      // else in it and no sign that can go on this map, the bag still says to go shopping, above them
+      if (tab === "もちもの") {
+        var owned = signs.filter(function (i) { return opened(s, i.to); });
+        if (!list.length && owned.every(function (i) { return signWhy(i.key); })) grid.append(el("p", "kg-empty", T.emptyBag));
+        list = list.concat(owned);
+      }
       if (!list.length) grid.append(el("p", "kg-empty", T.emptyTab));
       list.forEach(function (item) {
         var b = el("button", "kg-card");
@@ -1380,6 +1389,7 @@
           var why = signWhy(item.key);
           if (why) {
             b.classList.add("kg-off");
+            b.setAttribute("aria-disabled", "true");
             b.append(el("span", "kg-why", why));
           } else {
             if (placing === item.key) b.classList.add("kg-on");
@@ -1391,6 +1401,7 @@
           b.addEventListener("click", function () { setPlacing(item.key); select(null); showHint(); renderGrid(); });
         } else if (item.to && opened(s, item.to)) {
           b.classList.add("kg-owned");              // a sign the player has: in もちもの now
+          b.setAttribute("aria-disabled", "true");
           b.append(el("span", "kg-why", T.owned));
         } else {
           var price = el("span", "kg-price");

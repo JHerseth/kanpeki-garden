@@ -96,6 +96,7 @@ test("data-lang=\"en\": the top bar, the tabs, the shop's cards and questions ar
   assert.strictEqual(hint(root).textContent, "Drag it to move itPut awayOK");
   button(hint(root), "OK").click();
   assert.strictEqual(byClass(root, "kg-fold")[0].attrs["aria-label"], "Hide the shop");
+  assert.strictEqual(byClass(root, "kg-empty")[0].textContent, "Your bag is empty. Buy something in the shop!");
   assert.deepStrictEqual(byClass(root, "kg-card").map((n) => n.textContent), ["Sign to My gardenYou're in this garden"]);
   assert.deepStrictEqual(japanese(root), []);
 });
