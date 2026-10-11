@@ -18,7 +18,7 @@ coins buy plants and decorations for a pixel-art garden.
    switch at the top of that page. It's off by default, and the garden shows only in the new study screen.
 
 4. Still in AnkiDroid: Settings > Advanced > turn on "localStorage in Study Screen" (under Workarounds).
-   The garden keeps its save there; without it nothing is saved.
+   The garden keeps its save there; without it the garden won't open, and asks for this setting instead.
 
 5. Sync, then study on the phone: a coin chip shows in the bottom-right corner on the back of each card.
    Tap it to open the garden.

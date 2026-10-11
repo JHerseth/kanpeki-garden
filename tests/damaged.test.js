@@ -13,6 +13,8 @@ const { KEY, OLD_KEY, page, openGarden } = require("./harness");
 
 const NOW = new Date(2026, 9, 12, 10).getTime(), TODAY = "2026-10-12", YESTERDAY = "2026-10-11";
 const LOCKED = "いまは にわを ひらけないよ";
+const NO_STORAGE = "AnkiDroid の せっていで「localStorage in Study Screen」を オンに してね";
+const NO_STORAGE_EN = "Turn on \"localStorage in Study Screen\" in AnkiDroid's settings (Advanced)";
 const byClass = (root, c) => root.all((n) => n.classList.contains(c));
 const confirm = (root) => byClass(root, "kg-confirm")[0];
 const ids = (root) => byClass(root, "kg-item").map((d) => Number(d.dataset.id)).sort((a, b) => a - b);
@@ -113,6 +115,100 @@ test("a missing or non-object inv or seen becomes {}: buying and paying work, th
   }
 });
 
+test("a damaged next is set past every id, and is written; a sound one stays", () => {
+  for (const next of [undefined, null, "5", NaN, Infinity, 0, 1, 4]) {
+    const raw = JSON.stringify(sound({ placed: [rose(1), bench(4)], next: next === Infinity ? "INF" : next }))
+      .replace('"INF"', "1e999");                       // JSON's way to Infinity
+    const w = watched(raw);
+    const s = plain(page(w.stored, { now: NOW }).KanpekiGarden.load());
+    assert.strictEqual(s.next, 5, String(next));
+    assert.deepStrictEqual(s.placed.map((p) => p.id), [1, 4], String(next));
+    assert.strictEqual(w.n(), 1, String(next));
+    assert.strictEqual(saved(w.stored).next, 5, String(next));
+  }
+  const w = watched(JSON.stringify(sound({ placed: [rose(1), bench(4)], next: 9 })));
+  assert.strictEqual(page(w.stored, { now: NOW }).KanpekiGarden.load().next, 9);
+  assert.strictEqual(w.n(), 0);
+});
+
+test("placed ids that are missing, not numbers or taken twice get ids of their own, from next", () => {
+  const placed = [1, null, 4, 1, "2"].map((id, i) => Object.assign(bench(i + 1), { id }));
+  const stored = { [KEY]: JSON.stringify(sound({ placed, next: 5 })) };
+  const s = plain(page(stored, { now: NOW }).KanpekiGarden.load());
+  assert.deepStrictEqual(s.placed.map((p) => p.id), [1, 5, 4, 6, 7]);
+  assert.deepStrictEqual(s.placed.map((p) => p.x), placed.map((p) => p.x));   // the same items, in the same order
+  assert.strictEqual(s.next, 8);
+  assert.deepStrictEqual(saved(stored), s);
+  // the loss it stops: with next gone, two benches came out with one id, and putting one away took both
+  const root = openGarden(page(stored, { now: NOW }));
+  assert.deepStrictEqual(ids(root), [1, 4, 5, 6, 7]);
+});
+
+test("a damaged refunded note is dropped; a sound one is kept and shown", () => {
+  for (const refunded of [5, null, "x", [], {}, { items: null, coins: 3 }, { items: {}, coins: "3" }, { items: [], coins: 3 },
+    { items: {}, coins: null }]) {
+    const why = JSON.stringify(refunded);
+    const stored = { [KEY]: JSON.stringify(sound({ refunded, inv: { bench: 2, tomato_ripe: 1 } })) };
+    const win = page(stored, { now: NOW }), R = win.KG_REMOVED.tomato_ripe;
+    const s = plain(win.KanpekiGarden.load());
+    // tomato_ripe is refunded into a new note, as if there had been none
+    assert.deepStrictEqual(s.refunded, { items: { [R[0]]: 1 }, coins: R[2] }, why);
+    assert.strictEqual(s.coins, 500 + R[2], why);
+    assert.deepStrictEqual(saved(stored), s, why);
+    const root = play(stored);
+    assert.ok(/なくなったよ/.test(root.note), why);
+    assert.ok(!("refunded" in saved(stored)), why + ": shown once");
+    // and with nothing to refund the damaged note just goes
+    const alone = { [KEY]: JSON.stringify(sound({ refunded })) };
+    assert.ok(!("refunded" in plain(page(alone, { now: NOW }).KanpekiGarden.load())), why);
+    assert.strictEqual(play(alone).note, "", why);
+  }
+  const ok = { items: { "ニンジン": 1 }, coins: 30 };
+  const w = watched(JSON.stringify(sound({ refunded: ok })));
+  assert.deepStrictEqual(plain(page(w.stored, { now: NOW }).KanpekiGarden.load()).refunded, ok);
+  assert.strictEqual(w.n(), 0);
+});
+
+test("a placed plant's g that isn't a whole number from 0 is dropped (stage 0); a sound g stays", () => {
+  for (const g of ["x", -1, 1.5, null, "2", {}, 1e999]) {
+    const why = String(g);
+    const raw = JSON.stringify(sound({ placed: [Object.assign(rose(1), { g: g === 1e999 ? "INF" : g }), bench(2)] }))
+      .replace('"INF"', "1e999");
+    const stored = { [KEY]: raw };
+    const s = plain(page(stored, { now: NOW }).KanpekiGarden.load());
+    assert.ok(!("g" in s.placed[0]), why);
+    assert.deepStrictEqual(saved(stored), s, why);
+    const root = play(stored);                          // drawn, at stage 0 grown one for yesterday's reviews
+    assert.deepStrictEqual(ids(root), [1, 2], why);
+  }
+  const w = watched(JSON.stringify(sound({ placed: [Object.assign(rose(1), { g: 2 }), bench(2)] })));
+  assert.strictEqual(page(w.stored, { now: NOW }).KanpekiGarden.load().placed[0].g, 2);
+  assert.strictEqual(w.n(), 0);
+});
+
+test("a placed plant's damaged t joins the life cycle again today, at its stage (enrol, as before)", () => {
+  for (const t of [5, {}, "yesterday", true]) {
+    const stored = { [KEY]: JSON.stringify(sound({ placed: [Object.assign(rose(1), { t, g: 1 }), bench(2)] })) };
+    const s = plain(page(stored, { now: NOW }).KanpekiGarden.load());
+    assert.deepStrictEqual([s.placed[0].t, s.placed[0].g], [TODAY, 1], JSON.stringify(t));
+    assert.deepStrictEqual(ids(play(stored)), [1, 2], JSON.stringify(t));
+  }
+});
+
+test("coins or earned that aren't finite numbers become one: a number string its number, anything else 0", () => {
+  for (const [v, n] of [["500", 500], ["x", 0], [null, 0], [undefined, 0], [[], 0], [{}, 0], ["INF", 0]]) {
+    const why = JSON.stringify(v);
+    const raw = JSON.stringify(sound({ coins: v, earned: v })).split('"INF"').join("1e999");
+    const stored = { [KEY]: raw };
+    const s = plain(page(stored, { now: NOW }).KanpekiGarden.load());
+    assert.deepStrictEqual([s.coins, s.earned], [n, n], why);
+    assert.deepStrictEqual(saved(stored), s, why);
+    // a card pays one more: 501, not "5001"
+    assert.strictEqual(page(stored, { now: NOW }).KanpekiGarden.earn("5").gained, true, why);
+    assert.deepStrictEqual([saved(stored).coins, saved(stored).earned], [n + 1, n + 1], why);
+  }
+});
+
 test("a non-object days becomes {} (as before), and the rest is kept", () => {
   for (const days of [undefined, null, "x", 3, []]) {
     const stored = { [KEY]: JSON.stringify(sound({ days })) };
@@ -159,9 +255,20 @@ test("a save whose tidying throws, for any reason, is locked rather than started
     // the save is still there for a script that can read it
     assert.deepStrictEqual(plain(page(stored, { now: NOW }).KanpekiGarden.load()), sound(), step);
   }
-  // one it doesn't foresee today: a damaged refund note when an item is refunded
-  const stored = { [KEY]: JSON.stringify(sound({ refunded: 5, inv: { tomato_ripe: 1 } })) };
-  assertLocked(stored, {}, "refunded: 5");
+});
+
+test("no localStorage at all (AnkiDroid's setting off): locked, with a note naming the setting", () => {
+  for (const [data, text] of [[undefined, NO_STORAGE], [{ lang: "en" }, NO_STORAGE_EN]]) {
+    for (const none of [null, undefined]) {
+      const edit = (win) => { win.localStorage = none; };
+      const win = page({}, { now: NOW, edit });
+      assert.ok(win.KanpekiGarden.load().locked);
+      const root = openGarden(win, 5, data);
+      assert.strictEqual(confirm(root).hidden, false);
+      assert.strictEqual(confirm(root).textContent, text, String(none));
+      assert.strictEqual(purse(root), "0");
+    }
+  }
 });
 
 test("storage that can't be read locks the garden, and nothing is written", () => {

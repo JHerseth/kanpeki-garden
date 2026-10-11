@@ -177,6 +177,7 @@
       count: function (n) { return "×" + n; },
       goneFromShop: function () { return " は おみせから なくなったよ。"; },
       locked: "いまは にわを ひらけないよ",
+      noStorage: "AnkiDroid の せっていで「localStorage in Study Screen」を オンに してね",
       // the settings
       closeSettings: "せっていを とじる",
       motionOff: "スマホの せっていで とまっているよ",
@@ -237,6 +238,7 @@
       count: function (n) { return " ×" + n; },
       goneFromShop: function (many) { return many ? " are gone from the shop." : " is gone from the shop."; },
       locked: "The garden can't open right now",
+      noStorage: "Turn on \"localStorage in Study Screen\" in AnkiDroid's settings (Advanced)",
       closeSettings: "Close settings",
       motionOff: "Turned off in your phone's settings",
       sway: "Plants sway",
@@ -297,13 +299,17 @@
   var DYING = 2, DEAD = 4;                  // finished days in a row without reviews
   function fresh() { return { v: 3, coins: 0, earned: 0, seen: {}, inv: {}, placed: [], next: 1, days: {} }; }
   /** The save; the old key's is moved over the first time (v: 1, or v: 2 from a test build), and a v: 2 save
-   *  becomes v: 3 as it is (an older script, which wants v: 2, then locks it as below). Damaged fields are mended,
-   *  and the save written once for it. No save under either key starts fresh. A save this script can't read is
-   *  never written over: one from a newer script (any v but 2 or 3), one that isn't JSON or isn't an object, and
-   *  any other that makes a step here throw (storage that can't be read too). This one then gives a locked, empty
-   *  garden that save() won't store and earn() won't pay into, and the garden only says it can't open. */
+   *  becomes v: 3 as it is (an older script, which wants v: 2, then locks it as below). Damaged fields are mended
+   *  (tidyFields, tidyMaps), and the save written once for it. No save under KEY starts fresh, and so does an old
+   *  key's that isn't v: 1 or v: 2 (or isn't an object): only KEY is ever written, so the old key's stays as it is.
+   *  A save under KEY that this script can't read is never written over: one from a newer script (any v but 2 or
+   *  3), one that isn't JSON or isn't an object, and any other that makes a step here throw (an old key's that isn't
+   *  JSON, and storage that can't be read, too). This one then gives a locked, empty garden that save() won't store
+   *  and earn() won't pay into, and the garden only says it can't open; with no localStorage at all (AnkiDroid's
+   *  「localStorage in Study Screen」 off), it names that setting instead. */
   function load() {
     try {
+      if (!window.localStorage) return locked(true);
       var raw = localStorage.getItem(KEY), changed = false, s;
       if (raw == null) {
         s = JSON.parse(localStorage.getItem(OLD_KEY));
@@ -326,9 +332,12 @@
       return s;
     } catch (e) { return locked(); }    // unreadable, or damage nothing here foresaw: leave the stored save be
   }
-  function locked() {
+  /** A locked, empty save (see load). nostore: there's no localStorage at all, so the garden's note names the setting
+   *  that turns it on. Both are left out of the JSON, as save() never stores a locked save anyway. */
+  function locked(nostore) {
     var s = fresh();
     Object.defineProperty(s, "locked", { value: true });
+    if (nostore) Object.defineProperty(s, "nostore", { value: true });
     return s;
   }
   function save(s) {
@@ -338,17 +347,49 @@
 
   /** Whether v is an object as JSON gives one: not null, and not an array. */
   function isObj(v) { return !!v && typeof v === "object" && !Array.isArray(v); }
-  /** Mend the fields every part of the garden reads, after damage: placed, an array, keeps only its entries that are
-   *  objects (null, a number or an array in it is dropped); a missing or non-array placed becomes [], and a missing
-   *  or non-object inv, seen or days becomes {}. coins, earned and next are left as they are: nothing throws on
-   *  them. Whether it changed anything. */
+  /** Whether v is a number and finite (JSON has no NaN; 1e999 parses to Infinity). */
+  function finite(v) { return typeof v === "number" && isFinite(v); }
+  /** Mend the fields every part of the garden reads, after damage, each so that nothing throws on it or quietly
+   *  loses what the player has. Whether it changed anything.
+   *  - placed: an array (a missing or non-array one becomes []) of objects (null, a number or an array in it is
+   *    dropped, the rest kept). A plant's g that isn't a whole number from 0 is dropped, so it's at stage 0: any
+   *    other picks no frame and the map can't be drawn. A damaged t is enrol's to mend (it joins again today).
+   *  - ids and next: next goes past every id, and every placed item gets an id of its own. Without that, a missing
+   *    next gives new items id NaN, stored as null, and the next opening's null++ counts from 0 into ids in use;
+   *    two items with one id are taken away together (takeAway) though only one is paid for or put back. An item
+   *    whose id is missing, not a finite number, or taken by one before it gets the next id; ids only tie a placed
+   *    item to its node and selection within one opening, so a new one loses nothing.
+   *  - inv, seen and days: objects; a missing or non-object one becomes {}.
+   *  - coins and earned: finite numbers; anything else becomes its Number() if that's finite, else 0 (a string
+   *    "500" would otherwise earn a coin as "5001").
+   *  - refunded: {items: object, coins: finite number}, or left out; a damaged one is dropped, as showing it throws. */
   function tidyFields(s) {
     var changed = false;
     if (!Array.isArray(s.placed)) { s.placed = []; changed = true; }
     else if (!s.placed.every(isObj)) { s.placed = s.placed.filter(isObj); changed = true; }
+    s.placed.forEach(function (p) {
+      if ("g" in p && !(Number.isInteger(p.g) && p.g >= 0)) { delete p.g; changed = true; }
+    });
+    var top = 0, used = {};
+    s.placed.forEach(function (p) { if (finite(p.id) && p.id > top) top = p.id; });
+    if (!finite(s.next) || s.next <= top) { s.next = Math.floor(top) + 1; changed = true; }
+    s.placed.forEach(function (p) {
+      if (!finite(p.id) || used[p.id]) { p.id = s.next++; changed = true; }
+      used[p.id] = true;
+    });
     ["inv", "seen", "days"].forEach(function (f) {
       if (!isObj(s[f])) { s[f] = {}; changed = true; }
     });
+    ["coins", "earned"].forEach(function (f) {
+      if (finite(s[f])) return;
+      var n = Number(s[f]);
+      s[f] = isFinite(n) ? n : 0;
+      changed = true;
+    });
+    if ("refunded" in s && !(isObj(s.refunded) && isObj(s.refunded.items) && finite(s.refunded.coins))) {
+      delete s.refunded;
+      changed = true;
+    }
     return changed;
   }
 
@@ -1781,7 +1822,7 @@
     showMap();
     showVacation();
     if (s.locked) {           // a save from a newer script, or one it can't read (see load): say so, not an empty garden
-      confirmBox().append(el("div", "kg-ctext", T.locked));
+      confirmBox().append(el("div", "kg-ctext", s.nostore ? T.noStorage : T.locked));
       ui.confirm.hidden = false;
     }
     showRefund();
