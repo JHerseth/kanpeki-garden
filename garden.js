@@ -20,7 +20,9 @@
  *
  * Life cycle: a placed plant grows one stage for each finished day with reviews (the planting day
  * too), is dying after 2 finished days in a row without reviews and dead after 4. A review brings
- * a dying plant back at once; a dead one only goes to the compost (+25% of its price). The garden
+ * a dying plant back at once; a dead one only goes to the compost (+25% of its price). With 2 or more
+ * dead, its compost question also offers 「ぜんぶ ×n」, compost all: every dead plant at once, each paying
+ * its own 25%, in one save (askAll); dying ones, which can still recover, stay. The garden
  * runs only while a card is open, so it never ticks: the save keeps the days that had reviews,
  * and each plant's stage is worked out from them whenever the garden loads (lifeOf).
  * Plants can be moved but not put back in もちもの; decorations can.
@@ -104,6 +106,9 @@
       tapToPlace: "タップ して おいてね",
       cancel: "やめる",
       compost: function (n) { return "たいひにする？ ¤+" + n; },
+      // compost all: the button beside 「はい」 with the count of dead plants, then its question with their coins
+      compostAll: function (n) { return "ぜんぶ ×" + n; },
+      compostAllAsk: function (n, back) { return "かれた くさばな ×" + n + " を ぜんぶ たいひにする？ ¤+" + back; },
       yes: "はい",
       drag: "ゆびで うごかせるよ",
       putAway: "しまう",
@@ -155,6 +160,8 @@
       tapToPlace: "Tap to put it down",
       cancel: "Cancel",
       compost: function (n) { return "Compost it? ¤+" + n; },
+      compostAll: function (n) { return "All ×" + n; },
+      compostAllAsk: function (n, back) { return "Compost all " + n + " dead plants? ¤+" + back; },
       yes: "Yes",
       drag: "Drag it to move it",
       putAway: "Put away",
@@ -736,6 +743,7 @@
     var tab = "花";
     var placing = null;       // item key being placed
     var selected = null;      // placed id
+    var composting = false;   // the hint asks to compost every dead plant (compost all), all of them outlined
     var nodes = {};           // placed id -> div
     var lives = {};           // placed id -> lifeOf, worked out once per opening
     var hist = history(s);
@@ -804,7 +812,7 @@
       d.style.top = p.y - f.ay * KG_SCALE + "px";
       d.style.zIndex = String(Math.round(p.y));
       d.dataset.id = String(p.id);
-      d.classList.toggle("kg-sel", p.id === selected);
+      d.classList.toggle("kg-sel", p.id === selected || composting && dead(p));
       if (!nodes[p.id]) { nodes[p.id] = d; world.append(d); }
       swing(sprite(f, KG_SCALE, d.children[0]), f, swaying(p));
     }
@@ -967,6 +975,7 @@
       var prev = selected;
       selected = id;
       if (id != null) scare(id);   // no butterfly on the flower the player is about to move (pick leaves it out too)
+      if (composting) askAll(false, true);
       if (prev != null && find(prev)) drawPlaced(find(prev));
       if (id != null) drawPlaced(find(id));
       showHint();
@@ -985,24 +994,36 @@
       } else if (selected != null && find(selected)) {
         var p = find(selected), item = ITEMS[p.k];
         if (dead(p)) {
-          // a dead plant can't move: it can only go to the compost, for a quarter of its price
-          var back = Math.floor(item.price / 4);
+          // a dead plant can't move: it can only go to the compost, for a quarter of its price. With 2 or more
+          // dead, 「ぜんぶ ×n」 beside 「はい」 asks to compost them all (askAll), each for a quarter of its own
+          // price, summed; ✕ there comes back to this plant's question. Dying plants, which can still recover, stay
+          var gone = s.placed.filter(dead), back = Math.floor(item.price / 4), all = 0;
+          gone.forEach(function (q) { all += Math.floor(ITEMS[q.k].price / 4); });
           var ask = el("span");
-          ask.append.apply(ask, coined(T.compost(back)));
+          ask.append.apply(ask, coined(composting ? T.compostAllAsk(gone.length, all) : T.compost(back)));
           var yes = el("button", "kg-btn kg-btn-go", T.yes);
           yes.type = "button";
-          yes.addEventListener("click", function () { s.coins += back; takeAway(p); });
+          yes.addEventListener("click", function () {
+            if (composting) { s.coins += all; takeAway(gone); } else { s.coins += back; takeAway([p]); }
+          });
           var no = el("button", "kg-btn kg-x", "✕");
           no.type = "button";
           no.setAttribute("aria-label", T.cancel);
-          no.addEventListener("click", function () { select(null); });
-          ui.hint.append(ask, yes, no);
+          no.addEventListener("click", function () { if (composting) askAll(false); else select(null); });
+          ui.hint.append(ask, yes);
+          if (!composting && gone.length >= 2) {
+            var every = el("button", "kg-btn", T.compostAll(gone.length));
+            every.type = "button";
+            every.addEventListener("click", function () { askAll(true); });
+            ui.hint.append(every);
+          }
+          ui.hint.append(no);
         } else {
           ui.hint.append(el("span", null, T.drag));
           if (item.tab === "かざり") {         // plants stay in the garden; decorations can go back
             var stash = el("button", "kg-btn", T.putAway);
             stash.type = "button";
-            stash.addEventListener("click", function () { s.inv[p.k] = (s.inv[p.k] || 0) + 1; takeAway(p); });
+            stash.addEventListener("click", function () { s.inv[p.k] = (s.inv[p.k] || 0) + 1; takeAway([p]); });
             ui.hint.append(stash);
           }
           var ok = el("button", "kg-btn kg-btn-go", T.ok);
@@ -1014,14 +1035,27 @@
       } else {
         ui.hint.hidden = true;
       }
+      ui.hint.classList.toggle("kg-hint-all", composting && !ui.hint.hidden);
     }
-    /** Take placed item p off the map; the caller has already paid for it or put it back in もちもの. */
-    function takeAway(p) {
-      s.placed = s.placed.filter(function (q) { return q.id !== p.id; });
-      nodes[p.id].remove();
-      delete nodes[p.id];
-      delete lives[p.id];
+    /** Ask to compost every dead plant (on), outlining them all, or leave the question (off) for the selected
+     *  plant's own; quiet: only the outlines, for select, which then shows its own hint. */
+    function askAll(on, quiet) {
+      composting = on;
+      s.placed.forEach(function (p) { if (dead(p) && p.id !== selected) drawPlaced(p); });
+      if (!quiet) showHint();
+    }
+    /** Take placed items ps off the map, with one save and one redraw of the hint, the shop and the butterflies;
+     *  the caller has already paid for them or put them back in もちもの. */
+    function takeAway(ps) {
+      var ids = ps.map(function (p) { return p.id; });
+      s.placed = s.placed.filter(function (q) { return ids.indexOf(q.id) < 0; });
+      ps.forEach(function (p) {
+        nodes[p.id].remove();
+        delete nodes[p.id];
+        delete lives[p.id];
+      });
       selected = null;
+      composting = false;
       persist();
       showHint();
       renderGrid();
@@ -1296,6 +1330,7 @@
       markDead(s);
       hist = history(s);
       lives = {};
+      composting = false;     // which plants are dead may change: back to the selected plant's own question
       s.placed.forEach(drawPlaced);
       persist();
       showVacation();
@@ -1577,13 +1612,18 @@
     // (outside the world); taps go through it. Size, sheet and place per butterfly (newBug, drawBug)
     ".kg-bug{position:absolute;left:0;top:0;z-index:2000;background-repeat:no-repeat;image-rendering:pixelated;",
     "pointer-events:none;will-change:transform}",
-    // a small pill; taps on it (outside its buttons) still reach the map, so it never blocks a spot
-    ".kg-hint{position:absolute;left:50%;top:6px;z-index:5;display:flex;align-items:center;gap:6px;max-width:calc(100% - 12px);",
-    "transform:translateX(-50%);padding:3px 4px 3px 10px;background:rgba(244,230,196,.92);border:2px solid var(--kg-wood-dark);",
-    "border-radius:999px;font-size:13px;font-weight:700;white-space:nowrap;pointer-events:none}",
+    // a small pill; taps on it (outside its buttons) still reach the map, so it never blocks a spot. Centred, as
+    // wide as its content, at most the view's width less 6px on each side (a left:50% would leave it only half)
+    ".kg-hint{position:absolute;left:6px;right:6px;top:6px;z-index:5;display:flex;align-items:center;gap:6px;",
+    "width:fit-content;margin:0 auto;padding:3px 4px 3px 10px;background:rgba(244,230,196,.92);",
+    "border:2px solid var(--kg-wood-dark);border-radius:999px;font-size:13px;font-weight:700;white-space:nowrap;pointer-events:none}",
     ".kg-hint>span{overflow:hidden;text-overflow:ellipsis}",
+    // the compost-all question is too long for one line on a phone: it wraps, at its spaces only (keep-all keeps
+    // the kana words whole), in a pill with smaller corners for two lines
+    ".kg-hint-all{border-radius:18px}",
+    ".kg-hint-all>span{white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.35}",
     ".kg-hint .kg-sprite{flex:none}",
-    ".kg-hint .kg-btn{min-height:30px;padding:2px 10px;pointer-events:auto;border-radius:999px}",
+    ".kg-hint .kg-btn{flex:none;min-height:30px;padding:2px 10px;pointer-events:auto;border-radius:999px}",   // only the text gives way
     ".kg-hint .kg-x{width:30px;padding:0}",
     ".kg-zoom{position:absolute;right:8px;bottom:8px;z-index:5;display:flex;flex-direction:column;gap:6px}",
     ".kg-zbtn{width:40px;min-height:40px;padding:0;font-size:20px}",
