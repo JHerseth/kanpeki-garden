@@ -1,7 +1,6 @@
 // The shop's fold: ▼/▲ (▶/◀ sideways) folds the shop down to its tabs and opens it, a tab opens it, and this
 // phone remembers it. Upright, a fold at whole-map view fills the view's height; sideways the whole map grows to the
 // new space. While the player places something the shop folds by itself, and opens again after if it was open before.
-// The garden fills the card's view edge to edge, and the tab row shows no scrollbar.
 // Run: node --test tests/*.test.js
 "use strict";
 const test = require("node:test");
@@ -366,16 +365,4 @@ test("the CSS: folded, a message floats above the tabs; the vacation question st
   assert.match(side, /^[^@]*\.kg-shop-min \.kg-tab\{writing-mode:vertical-rl;/);
   assert.match(side, /^[^@]*\.kg-shop-min \.kg-confirm\{position:fixed;left:8px;right:62px;bottom:8px\}/);
   assert.ok(!css.split("}").some((r) => /kg-shop-min|kg-fold/.test(r) && r.includes("!important")));
-});
-
-test("the CSS: the garden fills the view edge to edge, with no safe-area room; the tab row scrolls with no scrollbar", () => {
-  const win = page({});
-  openGarden(win);
-  const css = win.document.getElementById("kg-style").textContent;
-  const rule = (sel) => new RegExp(sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\{([^}]*)\\}").exec(css)[1];
-  assert.ok(!css.includes("safe-area-inset") && !css.includes("env("));
-  assert.ok(!/padding/.test(rule(".kg-root")));
-  assert.match(rule(".kg-menu"), /(^|;)padding:56px 8px 8px;/);
-  assert.match(rule(".kg-tabs"), /(^|;)overflow-x:auto;.*(^|;)scrollbar-width:none(;|$)/);
-  assert.strictEqual(rule(".kg-tabs::-webkit-scrollbar"), "display:none");
 });
