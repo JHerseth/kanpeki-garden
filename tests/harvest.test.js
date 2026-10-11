@@ -578,17 +578,46 @@ test("pick all in a garden left open past 04:00 sees each plant's life then: one
   assert.strictEqual(shownHint(g.root), null);
 });
 
-test("zoomed in, pick all floats the coins up from each plant in the view; one out of it has none", () => {
-  // about the map's middle, 4 times: the tomatoes are in the view, the corn far left and the apple far right aren't
-  const g = garden({ placed: [ripe(1, "tomato", { x: 1000, y: 600 }), ripe(2, "tomato", { x: 1100, y: 600 }),
-    ripe(3, "corn", { x: 220 }), ripe(4, "apple", { x: 1900 })], next: 5 });
-  const zin = byClass(g.root, "kg-zbtn")[0];
+/** Zoom the garden in 4 times about the map's middle: the fake 400 x 300 view then shows garden x 802 to 1198 and
+ *  y 410 to 706, at 1.0125. */
+function zoomIn4(root) {
+  const zin = byClass(root, "kg-zbtn")[0];
   for (let i = 0; i < 4; i++) zin.click();
+}
+
+test("zoomed in, pick all floats the coins up from each plant in the view, its glint's room too; one out of it has none", () => {
+  // a tomato's picture reaches 123 px up from its spot, and its glint's room 34 px more. Tomatoes 1 and 2 are in the
+  // view; the corn is left of it, the apple right, tomato 5 above and tomato 6 below, glint and all; tomato 7 is below
+  // it but for its glint's room, which a tap can pick it by
+  const g = garden({ placed: [ripe(1, "tomato", { x: 1000, y: 600 }), ripe(2, "tomato", { x: 1100, y: 600 }),
+    ripe(3, "corn", { x: 220 }), ripe(4, "apple", { x: 1900 }), ripe(5, "tomato", { x: 900, y: 400 }),
+    ripe(6, "tomato", { x: 1000, y: 880 }), ripe(7, "tomato", { x: 1100, y: 845 })], next: 8 });
+  zoomIn4(g.root);
   touch(g.root, 1);
-  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×3 +9✕");
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×6 +15✕");
   takeAll(g.root).click();
-  assert.strictEqual(saved(g.stored).coins, 11, "they all pay");
-  assert.deepStrictEqual(floats(g.root), ["+2", "+2"], "none piled up at the view's sides");
+  assert.strictEqual(saved(g.stored).coins, 17, "they all pay");
+  assert.deepStrictEqual(floats(g.root), ["+2", "+2", "+2"], "none piled up at the view's sides");
+  // tomato 7's coins: over its middle, from the view's bottom, as its picture's top is below it
+  const up = byClass(g.root, "kg-gain");
+  assert.deepStrictEqual([up[2].style.left, up[2].style.top], [up[1].style.left, "300px"]);
+});
+
+test("with the cap nearly reached, pick all pays the plants in the view first, so the coins float up where they're seen", () => {
+  // tomatoes 1 and 4 in the view; the corn left of it and the apple right, placed before tomato 4
+  const g = garden({ coins: 0, placed: [ripe(1, "tomato", { x: 1000, y: 600 }), ripe(2, "corn", { x: 220 }),
+    ripe(3, "apple", { x: 1900 }), ripe(4, "tomato", { x: 1100, y: 600 })], next: 5, picked: { day: iso(MON), coins: 44 } });
+  zoomIn4(g.root);
+  touch(g.root, 1);                                                         // 46: ¤4 left today
+  assert.strictEqual(shownHint(g.root), "のこり ぜんぶ とる ×3 +4✕");
+  takeAll(g.root).click();
+  const s = saved(g.stored);
+  assert.deepStrictEqual([s.coins, s.picked.coins, s.placed.map((p) => p.h)], [6, 55, [iso(MON), iso(MON), iso(MON), iso(MON)]]);
+  // tomato 4 paid ¤2 with its float, 100 garden px right of tomato 1's; then the corn ¤2, out of the view, and the apple ¤0
+  assert.deepStrictEqual(floats(g.root), ["+2", "+2"]);
+  const left = byClass(g.root, "kg-gain").map((n) => parseFloat(n.style.left));
+  assert.ok(Math.abs(left[1] - left[0] - 101.25) < 1e-9, String(left));
+  assert.strictEqual(shownHint(g.root), CAP + "OK");
 });
 
 test("data-lang=\"en\": the offer in English", () => {

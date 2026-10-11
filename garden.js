@@ -36,9 +36,9 @@
  * pays PICK_CAP (¤50) a day at most: later picks clear the crop for nothing, and the first that the cap cuts short
  * in a day says so in the hint (pickCrops). Its coins aren't counted in earned. After a pick, while more crops are
  * ready on the map shown, the hint offers 「のこり ぜんぶ とる ×n ¤+N」, pick all: a tap picks every one of them, each as
- * a tap would, in one save, for N, what they pay together under the cap (¤+0 once it's reached). Its ✕, the next tap
- * on the map, or anything that changes what's ready there (a walk, placing, vacation, the test day) closes the offer;
- * after a pick that the cap cut short, it comes once the cap's note is put away with its OK.
+ * a tap would, in one save, for N, what they pay together under the cap (¤+0 once it's reached), those in the view
+ * first. Its ✕, the next tap on the map, a walk, starting to place, switching vacation or moving the test day closes
+ * the offer; after a pick that the cap cut short, it comes once the cap's note is put away with its OK.
  *
  * Maps (MAPS): the home map, 「わたしのにわ」, and two more, 「かわべの はらっぱ」 and 「たきの たかだい」. A map's signpost is its
  * key: the shop's とち tab sells 「かわべの はらっぱ」's for ¤500, then, once that is owned, 「たきの たかだい」's for ¤1000
@@ -1445,12 +1445,17 @@
      *  with all, every crop left on the map shown (the hint's offer). earned stays as it is. A selection ends, as at a
      *  tap on the map. The first pick in a day that the cap cuts short (paying less than its worth, or nothing) says so
      *  in the hint: s.picked counts what the crops were worth, paid or not, so a count already past PICK_CAP means an
-     *  earlier pick today was cut short, and said so. After a tap's pick the hint offers to pick the crops left on the
-     *  map shown (offering), once the cap's note, if it shows, is put away with its OK. */
+     *  earlier pick today was cut short, and said so. The plants in the view are picked first, in ps' order, then the
+     *  rest: with the cap nearly reached, the coins left go to plants the player sees them float up from. The view's
+     *  size is read once, before any of them changes the page (reading it after a change makes the page lay itself
+     *  out again, once a plant). After a tap's pick the hint offers to pick the crops left on the map shown
+     *  (offering), once the cap's note, if it shows, is put away with its OK; after picking them all, nothing. */
     function pickCrops(ps, all) {
-      var day = today(), before = pickedOn(day), paid = 0;
+      var day = today(), before = pickedOn(day), paid = 0, size = [view.clientWidth, view.clientHeight];
+      function shown(p) { return inView(p, stageFrame(ITEMS[p.k], life(p)), size); }
       select(null);
-      ps.forEach(function (p) { paid += harvest(p); });
+      ps.filter(shown).concat(ps.filter(function (p) { return !shown(p); }))
+        .forEach(function (p) { paid += harvest(p, size); });
       persist();
       if (paid) renderGrid();   // prices the player can now pay lose their grey
       capped = before <= PICK_CAP && pickedOn(day) > PICK_CAP;
@@ -1458,9 +1463,9 @@
       showHint();
     }
     /** Pick placed plant p's crop (ripe), for pickCrops, which saves: pay what it's worth as far as today's PICK_CAP
-     *  goes, note the day on it (h) and the crops picked today (s.picked), float the coins up from it (gain) and take
-     *  its glint away. What it paid. */
-    function harvest(p) {
+     *  goes, note the day on it (h) and the crops picked today (s.picked), float the coins up from it (gain; size: the
+     *  view's, as pickCrops read it) and take its glint away. What it paid. */
+    function harvest(p, size) {
       var day = today(), worth = cropOf(ITEMS[p.k]);
       var before = pickedOn(day), pay = pickPay(before, worth);
       s.picked = { day: day, coins: before + worth };
@@ -1468,27 +1473,38 @@
       p.h = day;
       delete lives[p.id];
       drawPlaced(p);
-      if (pay) gain(p, pay);
+      if (pay) gain(p, pay, size);
       return pay;
     }
     /** What the crops picked on `day` were worth (s.picked), paid or not: 0 when s.picked is another day's. */
     function pickedOn(day) { return s.picked && s.picked.day === day ? s.picked.coins : 0; }
     /** Float n coins up from placed plant p, from the top of its picture, as a card's coin floats up from its chip
      *  (kg-up): at screen size over the map, whatever the zoom, and taken away once that's done (1.1 s). Its spot is
-     *  kept GAIN_EDGE px in from the view's sides and GAIN_TOP px down from its top, so the coins stay in the view
-     *  when the picture's top is out of it. A picture all out of the view (pick all takes the whole map's) has none:
-     *  its coins would only pile up at the view's side. */
-    function gain(p, n) {
-      var f = stageFrame(ITEMS[p.k], life(p)), w = f.w * KG_SCALE * cam.s, h = f.h * KG_SCALE * cam.s;
+     *  kept GAIN_EDGE px in from the view's sides and GAIN_TOP px down from its top (size: the view's [w, h], read once
+     *  for the picks), so the coins stay in the view when the picture's top is out of it. A plant out of the view (pick
+     *  all takes the whole map's; inView) has none: its coins would only pile up at the view's side. */
+    function gain(p, n, size) {
+      var f = stageFrame(ITEMS[p.k], life(p));
+      if (!inView(p, f, size)) return;
       var x = cam.x + (p.x + (f.w / 2 - f.ax) * KG_SCALE) * cam.s, y = cam.y + (p.y - f.ay * KG_SCALE) * cam.s;
-      if (x + w / 2 <= 0 || x - w / 2 >= view.clientWidth || y + h <= 0 || y >= view.clientHeight) return;
       var up = el("div", "kg-gain"), coins = el("span");
       coins.append.apply(coins, coined("¤+" + n));
       up.append(coins);
-      up.style.left = Math.max(GAIN_EDGE, Math.min(view.clientWidth - GAIN_EDGE, x)) + "px";
-      up.style.top = Math.max(GAIN_TOP, Math.min(view.clientHeight, y)) + "px";
+      up.style.left = Math.max(GAIN_EDGE, Math.min(size[0] - GAIN_EDGE, x)) + "px";
+      up.style.top = Math.max(GAIN_TOP, Math.min(size[1], y)) + "px";
       view.append(up);
       setTimeout(function () { up.remove(); }, 1100);
+    }
+    /** Whether placed plant p, showing frame f, is in the view as the camera has it now: any of its picture, or of the
+     *  room above it that a ready crop's glint takes (showCrop; a tap there picks it too, so it counts whether the
+     *  glint shows or not). size: the view's [w, h], which the caller reads once for many plants, as reading it after
+     *  the page changed makes it lay itself out again. Pick all pays the plants in the view first (pickCrops), and a
+     *  plant out of it goes without what a pick shows at the plant (gain). */
+    function inView(p, f, size) {
+      var half = Math.max(f.w * KG_SCALE, GLINT_W * GLINT_PX) / 2 * cam.s;
+      var x = cam.x + (p.x + (f.w / 2 - f.ax) * KG_SCALE) * cam.s, top = cam.y + (p.y - f.ay * KG_SCALE) * cam.s;
+      return x + half > 0 && x - half < size[0] && top + f.h * KG_SCALE * cam.s > 0 &&
+        top + (GLINT_SINK - GLINT_W * GLINT_PX) * cam.s < size[1];
     }
     // maps: the one shown (here), the label of a selected sign, and walking to another
     /** Show map `here`: its picture (loaded the first time it's shown), its placed items, and its name and dots in the
