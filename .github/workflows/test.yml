@@ -3,14 +3,20 @@ name: Test
 
 on:
   push:
+    branches: ["**"]   # not tags: the release runs the tests itself
   pull_request:
 
 permissions:
   contents: read
 
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7.0.1
         with:

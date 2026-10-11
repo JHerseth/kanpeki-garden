@@ -75,6 +75,7 @@ Replace the media files in `collection.media` with the new zip's and sync; the s
 ### Build
 
 ```sh
+python3 -m pip install -r requirements.txt   # Pillow and NumPy, once
 python3 scripts/build_assets.py        # everything: atlas, background, catalog.js, media/_garden.js
 python3 scripts/build_assets.py --js   # only media/_garden.js, after editing garden.js
 ```
@@ -108,7 +109,7 @@ git tag v1.2.0
 git push origin v1.2.0
 ```
 
-The release workflow builds everything from the art (`scripts/release.py 1.2.0`), checks that the built `catalog.js` matches the committed one, and publishes a GitHub release with `kanpeki-garden-1.2.0.zip` and notes from the merged pull requests. There's nothing to bump by hand: the version comes from the tag. A tag with a suffix, like `v1.3.0-rc.1`, makes a pre-release. CI installs the Python packages pinned in `requirements.txt`.
+The release workflow builds everything from the art (`scripts/release.py 1.2.0`), checks that the build changes no committed file (`catalog.js`, `art/removed/`), and publishes a GitHub release with `kanpeki-garden-1.2.0.zip` and notes from the merged pull requests. There's nothing to bump by hand: the version comes from the tag. A tag with a suffix, like `v1.3.0-rc.1`, makes a pre-release. CI installs the Python packages pinned in `requirements.txt`.
 
 ## Licence
 

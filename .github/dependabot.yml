@@ -1,0 +1,11 @@
+# Monthly pull requests for new versions of the pinned actions and Python packages.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directories: ["/", "/.github/actions/*"]   # the workflows and the local actions
+    schedule:
+      interval: monthly
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: monthly
