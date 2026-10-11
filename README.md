@@ -6,6 +6,17 @@ The garden has three maps: the player's own garden, a riverside meadow and a wat
 
 The UI is in Japanese (kana), written for young learners, or in English with `data-lang="en"` on the card's slot.
 
+## Screenshots
+
+| | | |
+|---|---|---|
+| ![The home map with the shop open on its flowers tab](docs/screenshots/garden.webp) | ![Zoomed in on the walled flower bed and the vegetable beds](docs/screenshots/closeup.webp) | ![The riverside meadow, with the sign back home on its bridge](docs/screenshots/riverside.webp) |
+| The player's garden, with the shop open | Zoomed in, with the shop folded | The riverside meadow, unlocked with its sign |
+
+![The garden sideways, in English, with the shop open on its decorations tab](docs/screenshots/sideways-en.webp)
+
+Sideways, in English (`data-lang="en"`). All four are at phone size (360 × 740 and 740 × 360), from a staged save.
+
 ## Setup
 
 Nothing to build: everything comes in a zip.
@@ -75,6 +86,7 @@ Replace the media files in `collection.media` with the new zip's and sync; the s
 | `tests/` | Node tests with a small fake DOM |
 | `LICENSE` | MIT licence, code and art |
 | `ART.md` | How the art was made |
+| `docs/screenshots/` | The README's screenshots |
 
 ### Build
 
