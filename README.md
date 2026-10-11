@@ -88,7 +88,7 @@ Needs Python 3 with Pillow and NumPy, and `git lfs pull` for the art. Either bui
 node --test tests/*.test.js
 ```
 
-The tests of `scripts/release.py` (in `version.test.js`) need `python3`, and the one that builds `_garden.js` also Pillow and NumPy; each is skipped without them.
+The tests of `scripts/release.py` (in `version.test.js`) need `python3`, and the one that builds `_garden.js` also Pillow and NumPy, as does the test of the build's crop backups (`build.test.js`); each is skipped without them.
 
 GitHub Actions runs the tests and the `--js` build on every push and pull request, without the LFS art.
 

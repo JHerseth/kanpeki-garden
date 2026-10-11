@@ -11,7 +11,7 @@
     media/_garden_bg.webp
     catalog.js                   KG_CATALOG: per item its shop data and frames (format in the file),
                                         KG_REMOVED: {key: [name, price]} for items taken out of the shop
-    art/removed/<key>.png        the crops of those items, kept as a backup
+    art/removed/<key>.png        the crops of those items, kept as a backup (rewritten only if their pixels change)
     media/_garden.js             catalog.js + KG_VERSION + garden.js, the file the card templates load
 
     python scripts/build_assets.py --js   # only rebuild _garden.js after editing garden.js
@@ -459,6 +459,20 @@ def pack(sizes, side, pad=2):
     return pos, atlases
 
 
+def save_png(im, path):
+    """Save im to path as a PNG, unless the file there already holds the same picture -> whether it wrote.
+    A PNG's bytes depend on the zlib that compressed it, so another machine's build would otherwise
+    change a committed file whose pixels are the same."""
+    try:
+        with Image.open(path) as old:
+            if old.size == im.size and old.mode == im.mode and old.tobytes() == im.tobytes():
+                return False
+    except OSError:                     # not there, or not a picture: write it
+        pass
+    im.save(path, "PNG")
+    return True
+
+
 # The bundle's version line, between catalog.js and garden.js; scripts/release.py replaces it with a release's
 VERSION_DEV = '// KG_VERSION: the release this file was built for, or "dev" for a local build\nvar KG_VERSION = "dev";\n'
 
@@ -504,7 +518,7 @@ def main():
     items, frames, refunds, unsold = [], [], {}, []
     for key, name, tab, price, points in CATALOG:
         if key in REMOVED:
-            sheet[key].save(os.path.join(removed_dir, key + ".png"))
+            save_png(sheet[key], os.path.join(removed_dir, key + ".png"))
             refunds[key] = [name, price]
             continue
         strip, picture = (os.path.exists(os.path.join(d, key + ".png")) for d in (STAGES, DECOR))
