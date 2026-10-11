@@ -12,7 +12,7 @@ All of the garden's pictures were made with AI image generation: OpenAI's image 
 | `art/stages/<key>.png` | One plant's life cycle as a strip of five frames: sprout, young, mature, dying, dead (Git LFS) |
 | `art/stages/sheet40.png` | An earlier sheet of 40 plants; some new plants' prompts use its frames as a reference (Git LFS) |
 | `art/stages/old/` | Earlier versions of a few strips, and an earlier sheet of trees used as a reference (Git LFS) |
-| `art/decor/<key>.png` | A decoration drawn on its own, such as the bench, and `sign.png`, the signpost at the exits between maps (Git LFS) |
+| `art/decor/<key>.png` | A decoration drawn on its own, such as the bench, and `sign.png`, the signpost every map's sign is drawn with (Git LFS) |
 | `art/removed/<key>.png` | Backups of items taken out of the shop, cropped from the sprite sheet by the build |
 | `media/_garden_sprites<n>.webp`, `media/_garden_bg.webp`, `media/_garden_bg_<key>.webp` | The built media, made from the files above by `scripts/build_assets.py` |
 

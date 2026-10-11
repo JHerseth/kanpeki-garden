@@ -27,15 +27,17 @@
  * and each plant's stage is worked out from them whenever the garden loads (lifeOf).
  * Plants can be moved but not put back in もちもの; decorations can.
  *
- * Maps (MAPS): the home map, 「わたしのにわ」, and two more the player unlocks with coins, 「かわべの はらっぱ」 (¤500) and
- * 「たきの たかだい」 (¤1000). They are linked by the paths, bridges and stairs at their edges: at each exit a signpost
- * (KG_SIGN, its arrow mirrored where it should point left) stands on the map with a label over it at screen size,
- * the next map's name, or 「¤500 で ひらく」 while that map is locked. A tap on either walks there, or asks in the hint
- * whether to unlock it (unlocking spends coins but leaves earned as it is, and walks there). A walk fades the view
- * over to the next map, centred on the sign the player arrives at; a map's picture loads the first time the player
- * walks there, and the garden opens on the map visited last. Placed items belong to the map they were placed on, and
- * placing, moving, putting away, composting, compost all and the butterflies only see the map shown; coins, もちもの,
- * the shop and vacation are shared, and the life cycle runs on every map, shown or not.
+ * Maps (MAPS): the home map, 「わたしのにわ」, and two more, 「かわべの はらっぱ」 and 「たきの たかだい」. A map's signpost is its
+ * key: the shop's とち tab sells 「かわべの はらっぱ」's for ¤500, then, once that is owned, 「たきの たかだい」's for ¤1000
+ * (buying spends coins but leaves earned as it is), and the home map's is owned from the start, free. Owned signs stay
+ * in もちもの for good: placing one doesn't use it up, but a map takes one of each at most, and never its own (a sign
+ * that can't go on the map shown is greyed, with why). A placed sign is an item (sign_<map>) like a decoration: the
+ * first tap selects it, to drag it, flip its arrow (↔) or put it away (しまう), with a label over it, 「かわべの はらっぱ
+ * へ ▶」; a second tap on it or its label walks there. A walk fades the view over to the next map, centred on its sign
+ * back to the map left, or on its middle without one; a map's picture loads the first time the player walks there,
+ * and the garden opens on the map visited last. Placed items belong to the map they were placed on, and placing,
+ * moving, putting away, composting, compost all and the butterflies only see the map shown; coins, もちもの, the shop
+ * and vacation are shared, and the life cycle runs on every map, shown or not.
  *
  * Settings: the gear in the garden's top bar opens a panel with this phone's motion preferences
  * (prefSwitch), the vacation switch, on a dev slot the test section, and at the bottom the build's version
@@ -80,26 +82,21 @@
   var BASE = window.KG_BASE || "";          // media folder; Anki serves media next to the card
   var WORLD_W = 2000, WORLD_H = 1116;
   var POND = [1655, 685, 270, 180];         // the home map's pond, round its stones: centre x, y and radii x, y
-  /* The maps, in the order the top bar's dots show them; their names are T.maps, in the same order. Each has:
+  /* The maps, in the order the top bar's dots show them and the shop sells their signs; their names are T.maps, in
+   * the same order. Each has:
    *   key: its name in the save (s.maps, s.at, a placed item's m); home is the one every garden starts with, free.
    *   bg: its picture in the media folder, WORLD_W x WORLD_H like every map (scripts/build_assets.py makes it).
-   *   price: the coins that unlock it.
+   *   price: the coins its sign (sign_<key>) costs, which unlocks it; on sale once the map before it is open.
    *   water: its water as ellipses [centre x, y, radii x, y], which 「+150」 keeps out of (the player isn't kept out).
-   *   exits: [x, y, to, left] per exit at its edge: the foot of the signpost on the path, bridge or stairs there, the
-   *     map it leads to, and left: true where the sign's arrow points left (back towards home; it points right, on
-   *     towards the next map, otherwise). Every exit has one back on the map it leads to. */
+   * Each map's paths, bridge or stairs at its edges are where the player might put its signs; the game doesn't say. */
   var MAPS = [
-    { key: "home", bg: "_garden_bg.webp", price: 0, water: [POND],
-      exits: [[965, 1085, "riverside", false]] },                   // the stepping stones, out at the bottom
+    { key: "home", bg: "_garden_bg.webp", price: 0, water: [POND] },
     { key: "riverside", bg: "_garden_bg_riverside.webp", price: 500,
       // the stream, from the bushes on the left, under the bridge, to the falls on the right
       water: [[230, 860, 90, 70], [370, 950, 100, 70], [560, 1000, 130, 50], [760, 1005, 110, 45], [1120, 1025, 130, 45],
-        [1340, 1000, 110, 55], [1580, 945, 160, 60], [1800, 900, 90, 60], [1880, 830, 60, 80]],
-      exits: [[950, 1045, "home", true],                            // the bridge at the bottom
-        [1592, 300, "waterfall", false]] },                         // the stairs up the cliff, top right
+        [1340, 1000, 110, 55], [1580, 945, 160, 60], [1800, 900, 90, 60], [1880, 830, 60, 80]] },
     { key: "waterfall", bg: "_garden_bg_waterfall.webp", price: 1000,
-      water: [[1770, 535, 185, 110], [1845, 130, 50, 150], [1855, 330, 45, 100]],   // the pool, and the falls into it
-      exits: [[970, 1060, "riverside", true]] }                     // the stairs down, at the bottom; top left: a later map
+      water: [[1770, 535, 185, 110], [1845, 130, 50, 150], [1855, 330, 45, 100]] }  // the pool, and the falls into it
   ];
   var MAP = {};
   MAPS.forEach(function (m, i) { m.n = i; MAP[m.key] = m; });
@@ -109,9 +106,14 @@
   function wet(m, x, y) {
     return m.water.some(function (w) { return Math.pow((x - w[0]) / w[2], 2) + Math.pow((y - w[1]) / w[3], 2) < 1; });
   }
-  // the signpost at each exit: a frame like an item's (catalog.js's KG_SIGN), not sold in the shop
+  // the signpost every map's sign is drawn with: a frame like an item's (catalog.js's KG_SIGN), its arrow pointing right
   var SIGN = { a: KG_SIGN[0], x: KG_SIGN[1], y: KG_SIGN[2], w: KG_SIGN[3], h: KG_SIGN[4], ax: KG_SIGN[5], ay: KG_SIGN[6] };
-  var TABS = ["もちもの", "花", "はちうえ", "やさい", "草木", "木", "かざり"];
+  /** The map placed item or item key k's sign leads to, or null for anything but a sign. */
+  function signTo(k) {
+    var item = ITEMS[k && typeof k === "object" ? k.k : k];
+    return item && item.to || null;
+  }
+  var TABS = ["もちもの", "花", "はちうえ", "やさい", "草木", "木", "かざり", "とち"];
   var ITEMS = {};
   KG_CATALOG.forEach(function (e) {
     // frames (format in catalog.js): a, x, y, w, h on atlas a; ax, ay: the anchor that goes on the item's place.
@@ -128,7 +130,7 @@
    * function of the number; a ¤ in a text is where a coin goes (coined). */
   var TEXT = {
     ja: {
-      tabs: ["もちもの", "花", "はちうえ", "やさい", "草木", "木", "かざり"],
+      tabs: ["もちもの", "花", "はちうえ", "やさい", "草木", "木", "かざり", "とち"],
       name: function (ja) { return ja; },
       // the card's chip and toast
       openGarden: "にわを ひらく",
@@ -153,13 +155,15 @@
       drag: "ゆびで うごかせるよ",
       putAway: "しまう",
       ok: "OK",
-      // the signs at the exits: the label to an open map is its name; to a locked one, its price
-      goTo: function (name) { return name + " へ いく"; },
-      unlockSign: function (price) { return "¤" + price + " で ひらく"; },
-      unlockLabel: function (name, price) { return name + " を " + price + " コインで ひらく"; },
-      unlockAsk: function (name, price) { return name + " を ¤" + price + " で ひらく？"; },
+      // the maps' signs: a sign's name; the label over a selected one (its arrow as the sign's, \uFE0E: never an emoji),
+      // and its hint's flip; why one in もちもの can't go on this map; one bought in the とち tab
+      sign: function (name) { return name + " の かんばん"; },
+      goTo: function (name, left) { return left ? "◀\uFE0E " + name + " へ" : name + " へ ▶\uFE0E"; },
+      flip: "やじるしの むきを かえる",
+      signHere: "いまの にわだよ",
+      signPlaced: "もう おいてあるよ",
+      owned: "もっているよ",
       // the shop
-      emptyBag: "まだ なにも もっていないよ。おみせで かってね。",
       emptyTab: "ここには なにも ないよ。",
       buyAsk: function (price, left) { return "¤" + price + " で かう？ のこりは " + left; },
       buy: "かう",
@@ -190,7 +194,7 @@
       testDayMoved: function (n) { return "テスト：きょうを " + signed(n) + "日 ずらしている（タップで もどす）"; }
     },
     en: {
-      tabs: ["Bag", "Flowers", "Pots", "Veggies", "Greenery", "Trees", "Decor"],
+      tabs: ["Bag", "Flowers", "Pots", "Veggies", "Greenery", "Trees", "Decor", "Land"],
       name: function (ja, en) { return en; },
       openGarden: "Open the garden",
       openResting: "Open the garden (on vacation)",
@@ -211,11 +215,12 @@
       drag: "Drag it to move it",
       putAway: "Put away",
       ok: "OK",
-      goTo: function (name) { return "Go to " + name; },
-      unlockSign: function (price) { return "Open for ¤" + price; },
-      unlockLabel: function (name, price) { return "Open " + name + " for " + price + " coins"; },
-      unlockAsk: function (name, price) { return "Open " + name + " for ¤" + price + "?"; },
-      emptyBag: "Your bag is empty. Buy something in the shop!",
+      sign: function (name) { return "Sign to " + name; },
+      goTo: function (name, left) { return left ? "◀\uFE0E " + name : name + " ▶\uFE0E"; },
+      flip: "Turn the arrow around",
+      signHere: "You're in this garden",
+      signPlaced: "Already here",
+      owned: "Owned",
       emptyTab: "Nothing here.",
       buyAsk: function (price, left) { return "Buy for ¤" + price + "? You'll have " + left + " left."; },
       buy: "Buy",
@@ -248,6 +253,13 @@
       }
     }
   };
+  // the maps' signs, as items of the とち tab: sign_<map>, priced as the map, one frame (the signpost), to: the map
+  MAPS.forEach(function (m, i) {
+    var key = "sign_" + m.key;
+    ITEMS[key] = { key: key, name: TEXT.ja.sign(TEXT.ja.maps[i]), en: TEXT.en.sign(TEXT.en.maps[i]), tab: "とち",
+      price: m.price, sold: true, frames: [SIGN], pic: SIGN, to: m.key };
+  });
+
   /** The language of a card slot's text: "en" with data-lang="en", else "ja". */
   function langOf(slot) { return slot.dataset.lang === "en" ? "en" : "ja"; }
   /** Mark node n as text in lang, for its font and screen readers; Japanese, the garden's own, stays unmarked. */
@@ -261,8 +273,8 @@
   // ---- state -------------------------------------------------------------------------------
   /* Save, v: 3:
    *   coins, earned; seen {cardId: day it last paid}; inv {key: count}; next: the next placed id;
-   *   placed [{id, k, x, y, m?, t?, g?, dead?}]: m is the map it was placed on (MAPS' key; left out for home);
-   *     t is the day a plant joined the life cycle (placed, or
+   *   placed [{id, k, x, y, m?, f?, t?, g?, dead?}]: m is the map it was placed on (MAPS' key; left out for home);
+   *     a map's sign is k: sign_<map>, with f: 1 while its arrow points left (flipped); t is the day a plant joined the life cycle (placed, or
    *     enrolled), g the stage it joined at (0 if left out), dead the day it was first found dead, so it
    *     stays dead even if the phone's clock goes back. No t: outside the life cycle (decorations, and
    *     plants without stage art, which stay at their one frame until their strip comes; see enrol).
@@ -270,7 +282,8 @@
    *     day vacation was on at some point. VACATION is written when it is switched off, for every day
    *     from vac through that day, so days alone tell the walk which days were frozen;
    *   vac: while vacation is on, the day it was switched on. Left out while it's off.
-   *   maps: the maps the player has unlocked besides home, in the order unlocked; left out while there are none.
+   *   maps: the maps whose signs the player owns, so they're open, besides home (whose sign everyone owns), in the
+   *     order bought; left out while there are none. Signs are never in inv: owning one is being in maps.
    *   at: the map the player was on last, where the garden opens; left out for home.
    * Days are YYYY-MM-DD, starting at 04:00 (today()). v: 1 had no t, g, days or vac; v: 2 no maps, at or m, so it
    * moves over as it is, with everything on home. */
@@ -316,14 +329,15 @@
     try { localStorage.setItem(KEY, JSON.stringify(s)); return true; } catch (e) { return false; }
   }
 
-  /** Whether map `key` is open in save s: home, or one the player unlocked. */
+  /** Whether map `key` is open in save s: home, or one whose sign the player owns. */
   function opened(s, key) { return key === "home" || Array.isArray(s.maps) && s.maps.indexOf(key) >= 0; }
   /** The key of the map the player is on in save s. */
   function mapAt(s) { return s.at || "home"; }
   /** The key of the map placed item p is on. */
   function onMapOf(p) { return p.m || "home"; }
   /** Keep the save's maps to what a v: 3 save holds, after damage: maps, known maps but home, each once (left out
-   *  when none); at, an open map (left out for home); a placed item's m, an open map (left out for home). Anything
+   *  when none); at, an open map (left out for home); a placed item's m, an open map (left out for home); placed signs
+   *  only to open maps, never on their own map, one of each on a map, f only as 1; and no sign in inv. Anything
    *  else falls back to home, or is dropped. Whether it changed anything. */
   function tidyMaps(s) {
     var changed = false;
@@ -340,7 +354,22 @@
       changed = true;
     }
     home(s, "at");
-    if (Array.isArray(s.placed)) s.placed.forEach(function (p) { if (p && typeof p === "object") home(p, "m"); });
+    if (Array.isArray(s.placed)) {
+      s.placed.forEach(function (p) { if (p && typeof p === "object") home(p, "m"); });
+      var seen = {};
+      s.placed = s.placed.filter(function (p) {
+        var to = p && typeof p === "object" && signTo(p.k);
+        if (!to) return true;
+        var spot = onMapOf(p) + " " + p.k;
+        if (!opened(s, to) || to === onMapOf(p) || seen[spot]) { changed = true; return false; }
+        seen[spot] = true;
+        if ("f" in p && p.f !== 1) { delete p.f; changed = true; }
+        return true;
+      });
+    }
+    if (s.inv && typeof s.inv === "object") {
+      for (var k in s.inv) if (signTo(k)) { delete s.inv[k]; changed = true; }
+    }
     return changed;
   }
 
@@ -496,7 +525,7 @@
     return ((h ^ h >>> 16) >>> 0) / 4294967296;
   }
 
-  // A sign's label: LABEL_GAP px above its signpost (room for its tail), and LABEL_EDGE px in from the view's sides
+  // A selected sign's label: LABEL_GAP px above the signpost (room for its tail), and LABEL_EDGE px in from the view's sides
   var LABEL_GAP = 6, LABEL_EDGE = 4;
 
   // Butterflies: one for every BUGS_PER living flowers, at most BUGS_MAX
@@ -807,6 +836,11 @@
     zout.setAttribute("aria-label", T.zoomOut);
     zoom.append(zin, zout);
     view.append(zoom);
+    // a selected sign's label, over the map at screen size (showGo): a tap on it walks to the sign's map
+    ui.go = el("button", "kg-btn kg-go");
+    ui.go.type = "button";
+    ui.go.hidden = true;
+    view.append(ui.go);
 
     // shop
     var shop = el("div", "kg-shop");
@@ -832,8 +866,8 @@
     var selected = null;      // placed id
     var composting = false;   // the hint asks to compost every dead plant (compost all), all of them outlined
     var here = mapAt(s);      // the map shown
-    var asking = null;        // the map whose locked sign the hint asks about (to unlock it, or how many coins short)
-    var signs = [];           // the shown map's exits: {e: its exit in MAPS, post: its signpost, label: its label}
+    var goSize = [0, 0];      // the selected sign's label's size, read once each time it's shown (showGo)
+    var shownScale = null;    // the camera's scale as the world's --kg-s last had it
     var bgs = {};             // map key -> its picture, once the player has been there
     var veil = null;          // the walk's fade over the view, while it lasts
     var nodes = {};           // placed id -> div, on the map shown
@@ -872,8 +906,11 @@
       cam.x = ww <= vw ? (vw - ww) / 2 : Math.min(0, Math.max(vw - ww, cam.x));
       cam.y = wh <= vh ? (vh - wh) / 2 : Math.min(0, Math.max(vh - wh, cam.y));
       world.style.transform = "translate(" + cam.x + "px," + cam.y + "px) scale(" + cam.s + ")";
-      world.style.setProperty("--kg-s", String(cam.s));     // the signposts' hit area, a fixed size on the screen
-      placeSigns();
+      if (shownScale !== cam.s) {            // the signs' hit area, a fixed size on the screen (only when the scale changed)
+        shownScale = cam.s;
+        world.style.setProperty("--kg-s", String(cam.s));
+      }
+      placeGo();
     }
     function zoomAt(f, px, py) {
       var ns = Math.max(cam.fit, Math.min(cam.fit * 6, cam.s * f));
@@ -910,7 +947,14 @@
       d.dataset.id = String(p.id);
       d.classList.toggle("kg-sel", p.id === selected || composting && dead(p));
       if (!nodes[p.id]) { nodes[p.id] = d; world.append(d); }
-      swing(sprite(f, KG_SCALE, d.children[0]), f, swaying(p));
+      var pic = sprite(f, KG_SCALE, d.children[0]);
+      if (signTo(p)) {
+        // a sign: a hit area round it (kg-signpost), and its arrow turned about the post's foot while flipped (f)
+        d.classList.add("kg-signpost");
+        pic.style.transformOrigin = f.ax * KG_SCALE + "px 0";
+        pic.style.transform = p.f ? "scaleX(-1)" : "";
+      }
+      swing(pic, f, swaying(p));
     }
 
     // sway: on unless turned off in the settings (setSway), or by reduced motion; starts as prefSwitch
@@ -1069,7 +1113,6 @@
     function find(id) { for (var i = 0; i < s.placed.length; i++) if (s.placed[i].id === id) return s.placed[i]; return null; }
     function select(id) {
       var prev = selected;
-      asking = null;               // a tap on the map, or on an item, leaves a sign's question
       selected = id;
       if (id != null) scare(id);   // no butterfly on the flower the player is about to move (pick leaves it out too)
       if (composting) askAll(false, true);
@@ -1079,28 +1122,7 @@
     }
     function showHint() {
       ui.hint.textContent = "";
-      if (asking) {
-        // a locked map's sign: unlock it for its price (and walk there), or, with too few coins, the shop's message
-        var to = MAP[asking], q = el("span");
-        if (s.coins >= to.price) {
-          q.append.apply(q, coined(T.unlockAsk(T.maps[to.n], to.price)));
-          var open = el("button", "kg-btn kg-btn-go", T.yes);
-          open.type = "button";
-          open.addEventListener("click", function () { unlock(to.key); });
-          var shut = el("button", "kg-btn kg-x", "✕");
-          shut.type = "button";
-          shut.setAttribute("aria-label", T.cancel);
-          shut.addEventListener("click", function () { asking = null; showHint(); });
-          ui.hint.append(q, open, shut);
-        } else {
-          q.textContent = T.tooFew(to.price - s.coins);
-          var okay = el("button", "kg-btn", T.ok);
-          okay.type = "button";
-          okay.addEventListener("click", function () { asking = null; showHint(); });
-          ui.hint.append(q, okay);
-        }
-        ui.hint.hidden = false;
-      } else if (placing) {
+      if (placing) {
         var it = ITEMS[placing];
         ui.hint.append(thumb(it, 26), el("span", null, T.tapToPlace));
         var cancel = el("button", "kg-btn kg-x", "✕");
@@ -1138,10 +1160,23 @@
           ui.hint.append(no);
         } else {
           ui.hint.append(el("span", null, T.drag));
-          if (item.tab === "かざり") {         // plants stay in the garden; decorations can go back
+          if (signTo(p)) {                   // a sign: ↔ turns its arrow around
+            var turn = el("button", "kg-btn kg-x", "↔");
+            turn.type = "button";
+            turn.setAttribute("aria-label", T.flip);
+            turn.addEventListener("click", function () {
+              if (p.f) delete p.f; else p.f = 1;
+              persist();
+              drawPlaced(p);
+              showGo();
+            });
+            ui.hint.append(turn);
+          }
+          if (item.tab === "かざり" || signTo(p)) {   // plants stay in the garden; decorations can go back, signs too
             var stash = el("button", "kg-btn", T.putAway);
             stash.type = "button";
-            stash.addEventListener("click", function () { s.inv[p.k] = (s.inv[p.k] || 0) + 1; takeAway([p]); });
+            // a sign stays owned, in もちもの, whatever happens to it on the map
+            stash.addEventListener("click", function () { if (!signTo(p)) s.inv[p.k] = (s.inv[p.k] || 0) + 1; takeAway([p]); });
             ui.hint.append(stash);
           }
           var ok = el("button", "kg-btn kg-btn-go", T.ok);
@@ -1154,7 +1189,7 @@
         ui.hint.hidden = true;
       }
       ui.hint.classList.toggle("kg-hint-all", composting && !ui.hint.hidden);
-      ui.hint.classList.toggle("kg-hint-long", !!asking && !ui.hint.hidden);
+      showGo();
     }
     /** Ask to compost every dead plant (on), outlining them all, or leave the question (off) for the selected
      *  plant's own; quiet: only the outlines, for select, which calls it after selected has already changed (so
@@ -1181,9 +1216,9 @@
       renderGrid();
       flutter(true);
     }
-    // maps: the one shown (here), its exits' signs, walking to another, and unlocking one
-    /** Show map `here`: its picture (loaded the first time it's shown), its placed items, its signs, and its name and
-     *  dots in the top bar; the items and signs of the map shown before go. */
+    // maps: the one shown (here), the label of a selected sign, and walking to another
+    /** Show map `here`: its picture (loaded the first time it's shown), its placed items, and its name and dots in the
+     *  top bar; the items of the map shown before go. */
     function showMap() {
       var m = MAP[here];
       if (!bgs[here]) {
@@ -1199,9 +1234,6 @@
       for (var id in nodes) nodes[id].remove();
       nodes = {};
       onHere().forEach(drawPlaced);
-      signs.forEach(function (g) { g.post.remove(); g.label.remove(); });
-      signs = m.exits.map(signFor);
-      placeSigns();
       showTop();
     }
     /** The top bar's title: the map's name, and a dot per map in MAPS' order, filled for this one, hollow for another
@@ -1213,105 +1245,87 @@
         mapDots.append(el("span", "kg-dot " + (m.key === here ? "kg-dot-here" : opened(s, m.key) ? "kg-dot-open" : "kg-dot-lock")));
       });
     }
-    /** Exit e's sign: its signpost on the map, at its foot, in depth order with the items (mirrored when its arrow
-     *  points left), and its label over the map (placeSigns): the map's name, or its price while it's locked. */
-    function signFor(e) {
-      var to = MAP[e[2]], name = T.maps[to.n];
-      var post = el("div", "kg-post"), pic = sprite(SIGN, KG_SCALE);
-      post.style.left = e[0] - SIGN.ax * KG_SCALE + "px";
-      post.style.top = e[1] - SIGN.ay * KG_SCALE + "px";
-      post.style.zIndex = String(e[1]);
-      post.dataset.to = to.key;
-      if (e[3]) {
-        pic.style.transformOrigin = SIGN.ax * KG_SCALE + "px 0";
-        pic.style.transform = "scaleX(-1)";
-      }
-      post.append(pic);
-      world.append(post);
-      var label = el("button", "kg-btn kg-exit");
-      label.type = "button";
-      label.dataset.to = to.key;
-      label.disabled = !!s.locked;
-      if (opened(s, to.key)) {
-        label.textContent = name;
-        label.setAttribute("aria-label", T.goTo(name));
-      } else {
-        label.append.apply(label, coined(T.unlockSign(to.price)));
-        label.setAttribute("aria-label", T.unlockLabel(name, to.price));
-        label.classList.add("kg-exit-shut");
-      }
-      label.addEventListener("click", function () { toSign(to.key); });
-      view.append(label);
-      return { e: e, post: post, label: label };
+    /** The selected item if it's a sign, else null. */
+    function selectedSign() {
+      var p = selected != null && !placing ? find(selected) : null;
+      return p && signTo(p) ? p : null;
     }
-    /** Put each sign's label over its signpost, at screen size whatever the zoom: centred over the post, LABEL_GAP px
+    /** Show the label over the selected sign (its map's name, the arrow as the sign's), or hide it when no sign is
+     *  selected. Its size is read here, once each time it's shown, and placeGo puts it. */
+    function showGo() {
+      var p = selectedSign();
+      ui.go.hidden = !p;
+      if (!p) return;
+      var to = MAP[signTo(p)];
+      ui.go.textContent = T.goTo(T.maps[to.n], !!p.f);
+      ui.go.dataset.to = to.key;
+      goSize = [ui.go.offsetWidth || 0, ui.go.offsetHeight || 0];
+      placeGo();
+    }
+    /** Put the selected sign's label over it at screen size, whatever the zoom: centred over its post, LABEL_GAP px
      *  above its top. While the post's foot is in the view, the label moves in to stay whole in it. */
-    function placeSigns() {
-      var vw = view.clientWidth, vh = view.clientHeight;
-      signs.forEach(function (g) {
-        var b = g.label, w = b.offsetWidth || 0, h = b.offsetHeight || 0;
-        var fx = cam.x + g.e[0] * cam.s, fy = cam.y + g.e[1] * cam.s;
-        var x = fx - w / 2, y = cam.y + (g.e[1] - SIGN.ay * KG_SCALE) * cam.s - LABEL_GAP - h;
-        if (fx >= 0 && fx <= vw && fy >= 0 && fy <= vh) {
-          x = Math.max(LABEL_EDGE, Math.min(vw - w - LABEL_EDGE, x));
-          y = Math.max(LABEL_EDGE, Math.min(vh - h - LABEL_EDGE, y));
-        }
-        b.style.left = x + "px";
-        b.style.top = y + "px";
-      });
+    function placeGo() {
+      var p = !ui.go.hidden && selectedSign();
+      if (!p) return;
+      var vw = view.clientWidth, vh = view.clientHeight, w = goSize[0], h = goSize[1];
+      var fx = cam.x + p.x * cam.s, fy = cam.y + p.y * cam.s;
+      var x = fx - w / 2, y = cam.y + (p.y - SIGN.ay * KG_SCALE) * cam.s - LABEL_GAP - h;
+      if (fx >= 0 && fx <= vw && fy >= 0 && fy <= vh) {
+        x = Math.max(LABEL_EDGE, Math.min(vw - w - LABEL_EDGE, x));
+        y = Math.max(LABEL_EDGE, Math.min(vh - h - LABEL_EDGE, y));
+      }
+      ui.go.style.left = x + "px";
+      ui.go.style.top = y + "px";
     }
-    /** A tap on the sign to map `key`: walk there if it's open; if it's locked, ask in the hint (showHint). */
-    function toSign(key) {
-      if (s.locked) return;
-      if (opened(s, key)) { walk(key); return; }
-      select(null);
-      asking = key;
-      showHint();
+    ui.go.addEventListener("click", function () { var p = selectedSign(); if (p) walk(signTo(p)); });
+    /** Why sign `key` can't go on the map shown (its own map, or one of it there already), or null if it can. */
+    function signWhy(key) {
+      if (signTo(key) === here) return T.signHere;
+      return onHere().some(function (p) { return p.k === key; }) ? T.signPlaced : null;
     }
-    /** Unlock map `key` for its price, and walk there. earned stays as it is: it counts coins paid, not spent. */
-    function unlock(key) {
-      var m = MAP[key];
-      if (s.locked || opened(s, key) || s.coins < m.price) return;
-      s.coins -= m.price;
-      (s.maps = s.maps || []).push(key);
-      asking = null;
-      renderGrid();           // prices the player can no longer pay go grey
-      walk(key);
-    }
-    /** Walk to map `key`: nothing stays selected and no question is left (placing goes on, onto the new map), the
-     *  view fades over to it (a veil that its animation takes away), centred on the sign that leads back, at the same
-     *  zoom, and its own butterflies come for its flowers. */
+    /** Walk to open map `key`: a drag or pan under way ends there (its item already moved, and saved below), the
+     *  shop's question closes, nothing stays selected, placing goes on unless it's a sign that can't go there, the
+     *  view fades over to it (a veil that its animation takes away) centred on its sign back to the map left (its
+     *  middle without one) at the same zoom, and its own butterflies come for its flowers. */
     function walk(key) {
+      if (s.locked || !opened(s, key) || key === here) return;
       var from = here;
+      if (gesture && gesture.type === "drag" && gesture.moved) persist();    // the item moved so far stays where it is
+      gesture = null;
+      ui.confirm.hidden = true;
       select(null);
       here = key;
       if (key === "home") delete s.at; else s.at = key;
       persist();
+      if (placing && signTo(placing) && signWhy(placing)) setPlacing(null);
       showMap();
       while (bugs.length) bugs.pop().el.remove();
       flutter(false);
-      var back = MAP[key].exits.filter(function (e) { return e[2] === from; })[0];
-      if (back) {
-        cam.x = view.clientWidth / 2 - back[0] * cam.s;
-        cam.y = view.clientHeight / 2 - back[1] * cam.s;
-      }
+      var back = onHere().filter(function (p) { return p.k === "sign_" + from; })[0];
+      var x = back ? back.x : WORLD_W / 2, y = back ? back.y - SIGN.ay * KG_SCALE / 2 : WORLD_H / 2;
+      cam.x = view.clientWidth / 2 - x * cam.s;
+      cam.y = view.clientHeight / 2 - y * cam.s;
       clamp();
       if (veil) veil.remove();
       var v = veil = el("div", "kg-veil");
       v.addEventListener("animationend", function () { v.remove(); if (veil === v) veil = null; });
       view.append(v);
       showHint();
+      renderGrid();           // which signs can go on this map
     }
     function place(key, w) {
       var item = ITEMS[key], f = item.frames[0];
+      if (signTo(key) && signWhy(key)) { setPlacing(null); showHint(); renderGrid(); return; }
       // the tap is the middle of the picture it starts with
       var at = onMap(item, w.x, w.y + (f.ay - f.h / 2) * KG_SCALE);
       var p = { id: s.next++, k: key, x: at.x, y: at.y };
       if (here !== "home") p.m = here;
       if (item.frames.length > 1) p.t = today();      // a plant with stage art starts at its first frame
       s.placed.push(p);
-      s.inv[key] -= 1;
-      if (!s.inv[key]) delete s.inv[key];
+      if (!signTo(key)) {                               // a sign is never used up
+        s.inv[key] -= 1;
+        if (!s.inv[key]) delete s.inv[key];
+      }
       setPlacing(null);
       persist();
       drawPlaced(p);
@@ -1346,22 +1360,38 @@
     function renderGrid() {
       renderTabs();
       grid.textContent = "";
+      // the maps' signs: in もちもの the owned ones, after the rest; in とち each one on sale, the map before it open
+      var signs = MAPS.map(function (m) { return ITEMS["sign_" + m.key]; });
       var list = tab === "もちもの"
         ? Object.keys(s.inv).map(function (k) { return ITEMS[k]; }).filter(Boolean)
+        : tab === "とち" ? signs.filter(function (i) { return i.to !== "home" && opened(s, MAPS[MAP[i.to].n - 1].key); })
         : KG_CATALOG.map(function (e) { return ITEMS[e[0]]; }).filter(function (i) { return i.tab === tab && i.sold; });
-      if (!list.length) {
-        grid.append(el("p", "kg-empty", tab === "もちもの" ? T.emptyBag : T.emptyTab));
-      }
+      // the bag is never empty: the home sign is always in it
+      if (tab === "もちもの") list = list.concat(signs.filter(function (i) { return opened(s, i.to); }));
+      if (!list.length) grid.append(el("p", "kg-empty", T.emptyTab));
       list.forEach(function (item) {
         var b = el("button", "kg-card");
         b.type = "button";
         var box = el("div", "kg-thumb");
         box.append(thumb(item, 56));
         b.append(box, el("span", "kg-name", T.name(item.name, item.en)));
-        if (tab === "もちもの") {
+        if (tab === "もちもの" && item.to) {
+          // an owned sign: never used up, so no count; greyed, with why, where it can't go on this map
+          var why = signWhy(item.key);
+          if (why) {
+            b.classList.add("kg-off");
+            b.append(el("span", "kg-why", why));
+          } else {
+            if (placing === item.key) b.classList.add("kg-on");
+            b.addEventListener("click", function () { setPlacing(item.key); select(null); showHint(); renderGrid(); });
+          }
+        } else if (tab === "もちもの") {
           b.append(el("span", "kg-count", "×" + s.inv[item.key]));
           if (placing === item.key) b.classList.add("kg-on");
           b.addEventListener("click", function () { setPlacing(item.key); select(null); showHint(); renderGrid(); });
+        } else if (item.to && opened(s, item.to)) {
+          b.classList.add("kg-owned");              // a sign the player has: in もちもの now
+          b.append(el("span", "kg-why", T.owned));
         } else {
           var price = el("span", "kg-price");
           price.append(coinIcon(), document.createTextNode(String(item.price)));
@@ -1387,11 +1417,19 @@
         var buy = el("button", "kg-btn kg-btn-go", T.buy);
         buy.type = "button";
         buy.addEventListener("click", function () {
+          // checked again at the tap: coins spent since the question came up, or a sign since owned, don't pay twice
+          if (item.to && opened(s, item.to)) { c.hidden = true; renderGrid(); return; }
+          if (s.coins < item.price) { askBuy(item); return; }
           s.coins -= item.price;
-          s.inv[item.key] = (s.inv[item.key] || 0) + 1;
+          if (item.to) {                    // a map's sign: owning it opens the map
+            (s.maps = s.maps || []).push(item.to);
+            showTop();
+          } else {
+            s.inv[item.key] = (s.inv[item.key] || 0) + 1;
+          }
           persist();
           c.hidden = true;
-          setPlacing(item.key);
+          setPlacing(item.to && signWhy(item.key) ? null : item.key);
           select(null);
           showHint();
           renderGrid();
@@ -1620,7 +1658,7 @@
     function count() { return Object.keys(pts).length; }
     function pair() { var k = Object.keys(pts); return [pts[k[0]], pts[k[1]]]; }
     view.addEventListener("pointerdown", function (e) {
-      if (e.target.closest(".kg-hint button, .kg-zoom, .kg-exit")) return;
+      if (e.target.closest(".kg-hint button, .kg-zoom, .kg-go")) return;
       view.setPointerCapture(e.pointerId);
       pts[e.pointerId] = { x: e.clientX, y: e.clientY };
       if (count() === 2) {
@@ -1630,9 +1668,8 @@
       }
       var hit = e.target.closest(".kg-item");
       var id = hit ? Number(hit.dataset.id) : null;
-      var post = hit ? null : e.target.closest(".kg-post");     // a signpost, or its hit area round it
       gesture = { type: id != null && id === selected && !placing && !dead(find(id)) ? "drag" : "pan",
-        sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y, id: id, moved: false, post: post && post.dataset.to };
+        sx: e.clientX, sy: e.clientY, cx: cam.x, cy: cam.y, id: id, moved: false };
       if (gesture.type === "drag") {
         var w0 = toWorld(e.clientX, e.clientY), p0 = find(id);
         gesture.dx = p0.x - w0.x;
@@ -1656,6 +1693,7 @@
         q.x = at.x;
         q.y = at.y;
         drawPlaced(q);
+        if (q.id === selected) placeGo();
       } else if (gesture.type === "pan") {
         cam.x = gesture.cx + e.clientX - gesture.sx;
         cam.y = gesture.cy + e.clientY - gesture.sy;
@@ -1669,8 +1707,8 @@
       if (gesture.type === "pinch") { if (!count()) gesture = null; return; }
       if (gesture.type === "drag" && gesture.moved) persist();
       if (!gesture.moved && e.type === "pointerup") {
-        if (placing) place(placing, toWorld(e.clientX, e.clientY));     // also on a signpost: it's on the path
-        else if (gesture.post) toSign(gesture.post);
+        if (placing) place(placing, toWorld(e.clientX, e.clientY));
+        else if (gesture.id != null && gesture.id === selected && selectedSign()) walk(signTo(selectedSign()));   // a second tap
         else if (gesture.id != null) select(gesture.id === selected ? null : gesture.id);
         else select(null);
       }
@@ -1791,8 +1829,11 @@
     "center/contain no-repeat}",
     // a narrow phone: the name smaller, over the dots, and the purse and とじる narrower, so the longest name still fits
     // beside a five-digit purse, the gear and とじる
-    "@media (max-width:430px){.kg-top{gap:6px}.kg-title{flex-direction:column;align-items:flex-start;gap:3px}",
+    "@media (max-width:480px){.kg-top{gap:6px}.kg-title{flex-direction:column;align-items:flex-start;gap:3px}",
     ".kg-map-name{max-width:100%;font-size:13px;letter-spacing:0}.kg-top .kg-purse{padding:3px 8px}.kg-top .kg-close{padding:4px 10px}.kg-top .kg-gear{width:36px}}",
+    // the narrowest phones (320 px): smaller still, the purse's digits too
+    "@media (max-width:359px){.kg-top{padding:8px 8px}.kg-map-name{font-size:12px}.kg-top .kg-purse{padding:3px 6px;font-size:15px;gap:4px}",
+    ".kg-top .kg-close{padding:4px 8px}}",
     ".kg-purse{display:flex;align-items:center;gap:6px;padding:3px 10px;background:var(--kg-wood-dark);",
     "border-radius:4px;font-size:18px;font-weight:700;font-variant-numeric:tabular-nums;color:#ffe9a6}",
     ".kg-btn{min-height:36px;padding:4px 14px;color:var(--kg-ink);background:var(--kg-paper);border:2px solid var(--kg-wood-dark);",
@@ -1857,19 +1898,16 @@
     ".kg-view{position:relative;flex:1;min-height:120px;overflow:hidden;touch-action:none;background:var(--kg-shade)}",
     ".kg-world{position:absolute;left:0;top:0;transform-origin:0 0}",
     ".kg-ground,.kg-bg{position:absolute;inset:0;width:100%;height:100%;max-width:none;pointer-events:none}",
-    // an exit's signpost, drawn in depth order with the items (signFor). Its hit area reaches 16 px round it on the
-    // screen whatever the zoom: the world's --kg-s is its scale (clamp)
-    ".kg-post{position:absolute}",
-    ".kg-post::before{content:'';position:absolute;inset:calc(-16px / var(--kg-s,1))}",
-    ".kg-post>.kg-sprite{position:relative;filter:drop-shadow(0 6px 3px rgba(20,40,10,.35))}",
-    // its label, over the map at screen size above the post (placeSigns), a tail pointing down at it; a locked map's
-    // has its price in place of its name
-    ".kg-exit{position:absolute;left:0;top:0;z-index:3;display:flex;align-items:center;gap:3px;min-height:28px;",
+    // a placed sign's hit area reaches 16 px round it on the screen whatever the zoom: the world's --kg-s is its scale
+    // (clamp); its picture goes over it
+    ".kg-signpost::before{content:'';position:absolute;inset:calc(-16px / var(--kg-s,1))}",
+    ".kg-signpost>.kg-sprite{position:relative}",
+    // a selected sign's label, over the map at screen size above the post (placeGo), a tail pointing down at it
+    ".kg-go{position:absolute;left:0;top:0;z-index:3;display:flex;align-items:center;gap:3px;min-height:28px;",
     "padding:2px 10px;font-size:13px;border-radius:999px}",
-    ".kg-exit::after{content:'';position:absolute;left:50%;top:100%;margin:2px 0 0 -5px;border:5px solid transparent;",
+    ".kg-go::after{content:'';position:absolute;left:50%;top:100%;margin:2px 0 0 -5px;border:5px solid transparent;",
     "border-bottom:0;border-top-color:var(--kg-wood-dark)}",
-    ".kg-exit:active::after{display:none}",
-    ".kg-exit-shut{background:var(--kg-paper-2)}",
+    ".kg-go:active::after{display:none}",
     // the walk: the view goes dark and the next map fades in (walk)
     ".kg-veil{position:absolute;inset:0;z-index:4;background:var(--kg-shade);pointer-events:none;",
     "animation:kg-veil .45s ease-in forwards}",
@@ -1896,9 +1934,8 @@
     ".kg-hint>span{overflow:hidden;text-overflow:ellipsis}",
     // the compost-all question is too long for one line on a phone: it wraps, at its spaces only (keep-all keeps
     // the kana words whole), in a pill with smaller corners for two lines
-    // the same for a map's question, or how many coins it's short (kg-hint-long)
-    ".kg-hint-all,.kg-hint-long{border-radius:18px}",
-    ".kg-hint-all>span,.kg-hint-long>span{white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.35}",
+    ".kg-hint-all{border-radius:18px}",
+    ".kg-hint-all>span{white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.35}",
     ".kg-hint .kg-sprite{flex:none}",
     ".kg-hint .kg-btn{flex:none;min-height:30px;padding:2px 10px;pointer-events:auto;border-radius:999px}",   // only the text gives way
     ".kg-hint .kg-x{width:30px;padding:0}",
@@ -1926,6 +1963,9 @@
     ".kg-on{border-color:var(--kg-leaf);background:#eef8df}",
     ".kg-poor{opacity:.55}",
     ".kg-poor .kg-price{color:#a3372a}",
+    // a sign in もちもの that can't go on this map, with why; one in とち the player owns
+    ".kg-off,.kg-owned{opacity:.55;cursor:default}",
+    ".kg-why{font-size:11px;line-height:1.2;text-align:center}",
     ".kg-thumb{display:flex;align-items:flex-end;justify-content:center;width:60px;height:60px;flex:none}",
     ".kg-name{font-size:12px;line-height:1.25;text-align:center;overflow-wrap:anywhere}",
     ".kg-price,.kg-count{display:flex;align-items:center;gap:3px;font-weight:700;font-variant-numeric:tabular-nums}",

@@ -56,7 +56,7 @@ test("the shop lists only sold items, each showing its mature frame", () => {
   for (const tab of byClass(root, "kg-tab")) {
     tab.click();
     const t = tab.textContent;
-    if (/もちもの/.test(t)) continue;
+    if (/もちもの|とち/.test(t)) continue;            // the maps' signs (とち) are in maps.test.js
     const names = byClass(root, "kg-name").map((n) => n.textContent);
     const want = win.KG_CATALOG.filter((e) => e[3] === t && e[5]);
     assert.deepStrictEqual(names, plain(want.map((e) => e[1])), t);
@@ -77,7 +77,7 @@ test("a plant without stage art that the player owns still shows, in もちも�
   byClass(root, "kg-tab").find((n) => n.textContent === "花").click();
   assert.ok(!byClass(root, "kg-name").some((n) => n.textContent === "赤いバラ"));
   byClass(root, "kg-tab").find((n) => /もちもの/.test(n.textContent)).click();
-  assert.deepStrictEqual(byClass(root, "kg-name").map((n) => n.textContent), ["赤いバラ"]);
+  assert.deepStrictEqual(byClass(root, "kg-name").map((n) => n.textContent), ["赤いバラ", "わたしのにわ の かんばん"]);   // and the home sign
 });
 
 test("a placed plant shows its mature frame on its anchor; a hanging plant hangs from one hook", () => {

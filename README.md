@@ -2,7 +2,7 @@
 
 A small garden game that lives inside Anki cards. Each card the player answers in AnkiDroid's study screen pays one coin a day; coins buy flowers, vegetables, trees and decorations for a pixel-art garden. Plants grow one stage for each day with reviews (the day they're planted too), wilt after two days without, and die after four; a vacation switch freezes everything.
 
-The garden has three maps, linked by the paths, bridge and stairs at their edges: the player's own garden, and a riverside meadow (¤500) and a waterfall plateau (¤1000) that open for coins. A signpost stands at each exit; tapping it walks to the next map, or asks whether to open it. Each map keeps the plants placed on it, and the garden opens on the map visited last. Coins, the bag (もちもの) and the shop are shared, and plants on every map grow, wilt and die whether they're shown or not.
+The garden has three maps: the player's own garden, a riverside meadow and a waterfall plateau. A map's signpost is its key: the shop's とち ("Land") tab sells the riverside meadow's sign for ¤500, then the waterfall plateau's for ¤1000, and the home sign is the player's from the start. Owned signs stay in the bag (もちもの) for good; the player places them anywhere, one of each on a map (never a map's own sign), perhaps on the paths, bridge and stairs at the maps' edges. Tapping a placed sign selects it, to move it, turn its arrow (↔) or put it away (しまう), with a label naming its map; tapping it, or the label, again walks there. Each map keeps the plants placed on it, and the garden opens on the map visited last. Coins, the bag and the shop are shared, and plants on every map grow, wilt and die whether they're shown or not.
 
 The UI is in Japanese (kana), written for young learners, or in English with `data-lang="en"` on the card's slot.
 
@@ -51,7 +51,7 @@ Only in AnkiDroid's new study screen (AnkiDroid 2.23 or later, turned on in Sett
 
 - The coins and the garden are saved in AnkiDroid's localStorage on that phone. They are not synced: studying on another device pays nothing into this garden, and a second phone has a garden of its own.
 - Clearing AnkiDroid's app data, or uninstalling it, deletes the save.
-- The save's format is `v: 3`, which keeps the maps the player has opened, the map they were on last and the map each placed item is on. A `v: 2` save (v1.1.0 and earlier) moves over by itself, with everything on the first map; v1.1.0 and earlier then won't open the garden (see [Updating](#updating)).
+- The save's format is `v: 3`, which keeps the maps whose signs the player owns, the map they were on last and the map each placed item is on (placed signs are items too). A `v: 2` save (v1.1.0 and earlier) moves over by itself, with everything on the first map; v1.1.0 and earlier then won't open the garden (see [Updating](#updating)).
 - **Vacation (おやすみ):** a switch in the garden's settings (the gear). While it's on the garden is frozen: plants don't grow, wilt or die, and cards pay no coins (a card answered then still uses up its coin for the day). Shopping, placing, moving and composting still work.
 
 ### Updating

@@ -47,7 +47,7 @@ test("the two text tables have the same keys, each the same kind of thing; no Ja
   assert.deepStrictEqual(Object.keys(en).sort(), Object.keys(ja).sort());
   for (const k of Object.keys(ja)) assert.strictEqual(typeof en[k], typeof ja[k], k);
   // the tabs: one label for each of TABS, in its order; TABS' own names are the Japanese labels
-  assert.deepStrictEqual(Array.from(ja.tabs), ["もちもの", "花", "はちうえ", "やさい", "草木", "木", "かざり"]);
+  assert.deepStrictEqual(Array.from(ja.tabs), ["もちもの", "花", "はちうえ", "やさい", "草木", "木", "かざり", "とち"]);
   assert.strictEqual(en.tabs.length, ja.tabs.length);
   for (const [k, v] of Object.entries(en)) {
     const calls = k === "name" ? [["ばら", "Rose"]] : [[1, 2], [2, 3], [-1, 0], [0, 0]];
@@ -74,7 +74,7 @@ test("data-lang=\"en\": the top bar, the tabs, the shop's cards and questions ar
   assert.deepStrictEqual([texts(root, "kg-title")[0], texts(root, "kg-close")[0]], ["My garden", "Close"]);
   assert.strictEqual(byClass(root, "kg-gear")[0].attrs["aria-label"], "Settings");
   assert.deepStrictEqual(byClass(root, "kg-zbtn").map((n) => n.attrs["aria-label"]), ["Zoom in", "Zoom out"]);
-  assert.deepStrictEqual(texts(root, "kg-tab"), ["Bag1", "Flowers", "Pots", "Veggies", "Greenery", "Trees", "Decor"]);
+  assert.deepStrictEqual(texts(root, "kg-tab"), ["Bag1", "Flowers", "Pots", "Veggies", "Greenery", "Trees", "Decor", "Land"]);
   assert.deepStrictEqual(texts(root, "kg-name").slice(0, 3), ["Pink rose", "Red rose", "Yellow tulip"]);
   // buying: enough coins, and too few
   byClass(root, "kg-card")[0].click();
@@ -87,7 +87,7 @@ test("data-lang=\"en\": the top bar, the tabs, the shop's cards and questions ar
   assert.deepStrictEqual(japanese(root), []);
   // the bag, and placing from it
   tab(root, 0).click();
-  assert.deepStrictEqual(byClass(root, "kg-card").map((n) => n.textContent), ["Fence×1"]);
+  assert.deepStrictEqual(byClass(root, "kg-card").map((n) => n.textContent), ["Fence×1", "Sign to My gardenYou're in this garden"]);
   byClass(root, "kg-card")[0].click();
   assert.strictEqual(hint(root).textContent, "Tap to put it down✕");
   assert.strictEqual(button(hint(root), "✕").attrs["aria-label"], "Cancel");
@@ -96,7 +96,7 @@ test("data-lang=\"en\": the top bar, the tabs, the shop's cards and questions ar
   assert.strictEqual(hint(root).textContent, "Drag it to move itPut awayOK");
   button(hint(root), "OK").click();
   assert.strictEqual(byClass(root, "kg-fold")[0].attrs["aria-label"], "Hide the shop");
-  assert.strictEqual(byClass(root, "kg-empty")[0].textContent, "Your bag is empty. Buy something in the shop!");
+  assert.deepStrictEqual(byClass(root, "kg-card").map((n) => n.textContent), ["Sign to My gardenYou're in this garden"]);
   assert.deepStrictEqual(japanese(root), []);
 });
 
@@ -172,7 +172,7 @@ test("without data-lang, or with another value, everything is in Japanese, unmar
     const root = byClass(win.document.body, "kg-root")[0];
     assert.deepStrictEqual([root.attrs.lang, root.attrs["aria-label"]], [undefined, "にわ"]);
     assert.deepStrictEqual([texts(root, "kg-title")[0], texts(root, "kg-close")[0]], ["わたしのにわ", "とじる"]);
-    assert.deepStrictEqual(texts(root, "kg-tab"), ["もちもの", "花", "はちうえ", "やさい", "草木", "木", "かざり"]);
+    assert.deepStrictEqual(texts(root, "kg-tab"), ["もちもの", "花", "はちうえ", "やさい", "草木", "木", "かざり", "とち"]);
     assert.deepStrictEqual(texts(root, "kg-name").slice(0, 2), ["ピンクのバラ", "赤いバラ"]);
     byClass(root, "kg-card")[0].click();
     assert.strictEqual(confirm(root).textContent, "ピンクのバラ20 で かう？ のこりは 10かうやめる");
@@ -191,6 +191,6 @@ test("the save is the same in both: bought in English, it's in もちもの in J
   assert.deepStrictEqual(Object.keys(after).sort(), ["coins", "days", "earned", "inv", "next", "placed", "seen", "v"]);
   const ja = openGarden(page(stored, { now: NOW }));
   tab(ja, 0).click();
-  assert.deepStrictEqual(byClass(ja, "kg-card").map((n) => n.textContent), ["ピンクのバラ×1"]);
+  assert.deepStrictEqual(byClass(ja, "kg-card").map((n) => n.textContent), ["ピンクのバラ×1", "わたしのにわ の かんばんいまの にわだよ"]);
   assert.strictEqual(texts(ja, "kg-purse-n")[0], "10");
 });

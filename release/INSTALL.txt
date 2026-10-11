@@ -28,8 +28,9 @@ Good to know
   the previewer or the card browser.
 - The garden and its coins are saved on that phone only; they are not synced. Clearing AnkiDroid's app
   data, or uninstalling it, deletes them.
-- The garden has three maps. The other two open for coins: tap the sign on the path at the edge of
-  the map. Each map keeps its own plants; coins and the bag are shared.
+- The garden has three maps. Buy a map's signpost in the shop's とち (Land) tab, place it, then tap it
+  twice to walk there; the sign home is in the bag from the start. Each map keeps its own plants;
+  coins and the bag are shared.
 - Away for a while? Turn on おやすみ (Vacation in English) in the garden's settings (the gear): plants then don't
   grow, wilt or die, and cards pay no coins until it's turned off.
 - To update, replace the media files with the new zip's; the garden's save is kept.
