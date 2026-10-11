@@ -43,7 +43,8 @@ test("with data-dev=\"1\": +150 places 150 mature, living plants on the map, out
     assert.ok(item.sold && item.frames.length > 1, p.k);
     assert.ok(item.frames[0].ay <= item.frames[0].h, p.k + " hangs");
     assert.deepStrictEqual([p.t, p.g], [TODAY, item.frames.length - 3], p.k);
-    assert.deepStrictEqual(JSON.parse(JSON.stringify(G.life(s, p))), { g: item.frames.length - 3, missed: 0, dead: false }, p.k);
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(G.life(s, p))),
+      { g: item.frames.length - 3, missed: 0, dead: false, crop: false }, p.k);
     assert.ok(Number.isInteger(p.x) && Number.isInteger(p.y));
     assert.ok(p.x >= f.ax * win.KG_SCALE - 0.5 && p.x <= 2000 - (f.w - f.ax) * win.KG_SCALE + 0.5, p.k + " x " + p.x);
     assert.ok(p.y >= f.ay * win.KG_SCALE - 0.5 && p.y <= 1116, p.k + " y " + p.y);
@@ -102,7 +103,9 @@ test("placed on a day with reviews, they stay mature after it: the planting day 
   openGarden(w);
   for (const p of s.placed) {
     const mature = G.items[p.k].frames.length - 3;
-    assert.deepStrictEqual(JSON.parse(JSON.stringify(G.life(s, p))), { g: mature, missed: 0, dead: false }, p.k);
+    // and a vegetable or fruit tree has a crop: it was mature through that day
+    const crop = G.cropOf(G.items[p.k]) > 0;
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(G.life(s, p))), { g: mature, missed: 0, dead: false, crop }, p.k);
   }
 });
 

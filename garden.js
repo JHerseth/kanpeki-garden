@@ -27,6 +27,15 @@
  * and each plant's stage is worked out from them whenever the garden loads (lifeOf).
  * Plants can be moved but not put back in もちもの; decorations can.
  *
+ * Harvest: every plant on the やさい tab and the fruit trees (cropOf) has a crop to pick once it has been mature
+ * through a growth day (a finished day with reviews) since it matured or was last picked. One at most, however many
+ * growth days pass; none while it's dying or dead (one it had is lost then, and the day it comes back on brings the
+ * next) or while vacation is on. Like its stage, its crop is worked out from the save whenever the garden loads
+ * (lifeOf). A ready plant shows a still glint above it, swaying with it (showCrop); a tap picks it for ¤2 (a
+ * vegetable) or ¤5 (a fruit tree), with the coins floating up from it, and the next tap selects it as before. Picking
+ * pays PICK_CAP (¤50) a day at most: later picks clear the crop for nothing, and the first that the cap cuts short
+ * in a day says so in the hint (harvest). Its coins aren't counted in earned.
+ *
  * Maps (MAPS): the home map, 「わたしのにわ」, and two more, 「かわべの はらっぱ」 and 「たきの たかだい」. A map's signpost is its
  * key: the shop's とち tab sells 「かわべの はらっぱ」's for ¤500, then, once that is owned, 「たきの たかだい」's for ¤1000
  * (buying spends coins but leaves earned as it is), and the home map's is owned from the start, free. Owned signs stay
@@ -36,17 +45,18 @@
  * へ ▶」; a second tap on it or its label walks there. A walk fades the view over to the next map, centred on its sign
  * back to the map left, or on its middle without one; a map's picture loads the first time the player walks there,
  * and the garden opens on the map visited last. Placed items belong to the map they were placed on, and placing,
- * moving, putting away, composting, compost all and the butterflies only see the map shown; coins, もちもの, the shop
- * and vacation are shared, and the life cycle runs on every map, shown or not.
+ * moving, putting away, composting, compost all, picking and the butterflies only see the map shown; coins, もちもの,
+ * the shop and vacation are shared, and the life cycle runs on every map, shown or not.
  *
  * Settings: the gear in the garden's top bar opens a panel with this phone's motion preferences
  * (prefSwitch), the vacation switch, on a dev slot the test section, and at the bottom the build's version
  * (KG_VERSION), in small quiet text, to tell builds apart when someone reports a problem.
  *
  * Vacation (おやすみ): a switch in the garden's settings that the player turns on and off. While it's on the
- * garden is frozen: no growth, no wilting, no dying, and no coins, but a card answered then still uses
- * up its coin for the day. A day it was on at some point is never a missed day; reviews made while it
- * was off still make it a growth day. Shopping, placing, moving and composting all still work.
+ * garden is frozen: no growth, no wilting, no dying, no crops (one ready before waits for it to end), and no
+ * coins, but a card answered then still uses up its coin for the day. A day it was on at some point is never a
+ * missed day; reviews made while it was off still make it a growth day. Shopping, placing, moving and composting
+ * all still work.
  *
  * Sway: flowers, vegetables, shrubs and trees sway in a breeze, a CSS animation on each picture (swayOf);
  * the settings' 「くさばなが ゆれる」 and reduced motion stop it.
@@ -151,6 +161,8 @@
       // compost all: the button beside 「はい」 with the count of dead plants, then its question with their coins
       compostAll: function (n) { return "ぜんぶ " + TEXT.ja.count(n); },
       compostAllAsk: function (n, back) { return "かれた くさばな " + TEXT.ja.count(n) + " を ぜんぶ たいひにする？ ¤+" + back; },
+      // the harvest's note, after the first pick in a day that the day's cap of n coins cut short
+      pickCap: function (n) { return "きょうの しゅうかくは ¤" + n + " まで"; },
       yes: "はい",
       drag: "ゆびで うごかせるよ",
       putAway: "しまう",
@@ -214,6 +226,8 @@
       compost: function (n) { return "Compost it? ¤+" + n; },
       compostAll: function (n) { return "All ×" + n; },
       compostAllAsk: function (n, back) { return "Compost all " + n + " dead plants? ¤+" + back; },
+      // \u00a0: wrapped on a phone, "each day" goes to the second line together
+      pickCap: function (n) { return "You can earn up to ¤" + n + " from picking each\u00a0day"; },
       yes: "Yes",
       drag: "Drag it to move it",
       putAway: "Put away",
@@ -279,9 +293,10 @@
   // ---- state -------------------------------------------------------------------------------
   /* Save, v: 3:
    *   coins, earned; seen {cardId: day it last paid}; inv {key: count}; next: the next placed id;
-   *   placed [{id, k, x, y, m?, f?, t?, g?, dead?}]: m is the map it was placed on (MAPS' key; left out for
+   *   placed [{id, k, x, y, m?, f?, t?, g?, h?, dead?}]: m is the map it was placed on (MAPS' key; left out for
    *     home); a map's sign is k: sign_<map>, with f: 1 while its arrow points left (flipped); t is the day a
-   *     plant joined the life cycle (placed, or enrolled), g the stage it joined at (0 if left out), dead the day it was first found dead, so it
+   *     plant joined the life cycle (placed, or enrolled), g the stage it joined at (0 if left out), h the day its
+   *     crop was last picked (left out until the first pick), dead the day it was first found dead, so it
    *     stays dead even if the phone's clock goes back. No t: outside the life cycle (decorations, and
    *     plants without stage art, which stay at their one frame until their strip comes; see enrol).
    *   days {day: flags}: REVIEWED for a day with reviews (made while vacation was off), VACATION for a
@@ -291,8 +306,13 @@
    *   maps: the maps whose signs the player owns, so they're open, besides home (whose sign everyone owns), in the
    *     order bought; left out while there are none. Signs are never in inv: owning one is being in maps.
    *   at: the map the player was on last, where the garden opens; left out for home.
+   *   picked {day, coins}: the crops picked on that day, as the coins they were worth together, paid or not (picking
+   *     pays PICK_CAP a day at most; see harvest). One from a day before today counts as none. Left out until the
+   *     first pick.
    * Days are YYYY-MM-DD, starting at 04:00 (today()). v: 1 had no t, g, days or vac; v: 2 no maps, at or m, so it
-   * moves over as it is, with everything on home.
+   * moves over as it is, with everything on home. h and picked came after v: 3 without changing it: a v: 3 script
+   * from before them keeps fields it doesn't know, on the save and on placed items, so it loads and saves them as
+   * they are.
    * The save is on the player's phone alone, so one written over is a garden gone. Damage that load() can mend is
    * mended and the rest kept (tidyFields, tidyMaps); a save it can't read at all is locked and never written over. */
   var REVIEWED = 1, VACATION = 2;
@@ -353,7 +373,9 @@
    *  loses what the player has. Whether it changed anything.
    *  - placed: an array (a missing or non-array one becomes []) of objects (null, a number or an array in it is
    *    dropped, the rest kept). A plant's g that isn't a whole number from 0 is dropped, so it's at stage 0: any
-   *    other picks no frame and the map can't be drawn. A damaged t is enrol's to mend (it joins again today).
+   *    other picks no frame and the map can't be drawn. A damaged t is enrol's to mend (it joins again today). An h
+   *    that isn't a day is dropped, as if it had never been picked: a crop it may then have again is a few coins,
+   *    where a guess at the day could lose one.
    *  - ids and next: next goes past every id, and every placed item gets an id of its own. Without that, a missing
    *    next gives new items id NaN, stored as null, and the next opening's null++ counts from 0 into ids in use;
    *    two items with one id are taken away together (takeAway) though only one is paid for or put back. An item
@@ -362,13 +384,16 @@
    *  - inv, seen and days: objects; a missing or non-object one becomes {}.
    *  - coins and earned: finite numbers; anything else becomes its Number() if that's finite, else 0 (a string
    *    "500" would otherwise earn a coin as "5001").
-   *  - refunded: {items: object, coins: finite number}, or left out; a damaged one is dropped, as showing it throws. */
+   *  - refunded: {items: object, coins: finite number}, or left out; a damaged one is dropped, as showing it throws.
+   *  - picked: {day: a day, coins: a finite number from 0}, or left out; a damaged one is dropped, so nothing counts
+   *    as picked today (a coins of "12" would otherwise add up as a string, and one below 0 pay past the cap). */
   function tidyFields(s) {
     var changed = false;
     if (!Array.isArray(s.placed)) { s.placed = []; changed = true; }
     else if (!s.placed.every(isObj)) { s.placed = s.placed.filter(isObj); changed = true; }
     s.placed.forEach(function (p) {
       if ("g" in p && !(Number.isInteger(p.g) && p.g >= 0)) { delete p.g; changed = true; }
+      if ("h" in p && !isDay(p.h)) { delete p.h; changed = true; }
     });
     var top = 0, used = {};
     s.placed.forEach(function (p) { if (finite(p.id) && p.id > top) top = p.id; });
@@ -388,6 +413,10 @@
     });
     if ("refunded" in s && !(isObj(s.refunded) && isObj(s.refunded.items) && finite(s.refunded.coins))) {
       delete s.refunded;
+      changed = true;
+    }
+    if ("picked" in s && !(isObj(s.picked) && isDay(s.picked.day) && finite(s.picked.coins) && s.picked.coins >= 0)) {
+      delete s.picked;
       changed = true;
     }
     return changed;
@@ -518,23 +547,39 @@
       .sort(function (a, b) { return a[0] - b[0]; });
   }
 
+  // Harvest: what a crop pays when it's picked, by the plant: VEG_PAY for every plant on the やさい tab, FRUIT_PAY for
+  // the FRUIT trees; flowers, pots, 草木 and the other trees have none. Picking pays PICK_CAP a day at most (harvest)
+  var VEG_PAY = 2, FRUIT_PAY = 5, PICK_CAP = 50;
+  var FRUIT = ["apple", "orange_tree", "pear_tree"];
+  /** The coins a crop of item pays when it's picked, or 0 for an item that has no crop. */
+  function cropOf(item) { return item.tab === "やさい" ? VEG_PAY : FRUIT.indexOf(item.key) >= 0 ? FRUIT_PAY : 0; }
+
   /** Where placed plant p is in its life cycle now: {g: growth stage, missed: finished days in a row
-   *  without reviews, dead}, or null outside the life cycle. Worked out from s.days and s.vac alone (hist:
-   *  its history(), if at hand), so it comes out the same whenever it is asked. Its day t counts as a
+   *  without reviews, dead, crop}, or null outside the life cycle. Worked out from s.days, s.vac and p.h alone
+   *  (hist: its history(), if at hand), so it comes out the same whenever it is asked. Its day t counts as a
    *  review day whatever happens on it, and as a growth day if it had reviews, like any other day. Only
    *  finished days grow it or count as missed; a review today brings a dying plant back now. Vacation days
    *  (VACATION, and every day since vac while it's on) are frozen: they neither count as missed nor end a run
-   *  of missed days. Once found dead (p.dead) it stays dead. */
+   *  of missed days. Once found dead (p.dead) it stays dead.
+   *  crop: whether it has a crop to pick, for a plant that has one (cropOf): once it has been mature through a growth
+   *  day since it matured or was last picked, that is once a growth day is over that's on or after both the first day
+   *  it was mature (t, if it joined mature) and the day it was last picked (p.h). One crop at most, however many
+   *  growth days pass. A dying plant loses its crop, and the first day that can bring the next is the one it came back
+   *  on (a growth day once it's over, as it is for growth). None while it's dying or dead, or while vacation is on: a
+   *  crop ready before waits for it to end, and vacation days are no growth days. The walk notes the first day it's
+   *  mature and its last growth day as it goes, so the crop needs no second walk over the days. */
   function lifeOf(s, p, hist) {
     var item = ITEMS[p.k];
     if (!item || p.t == null || item.frames.length < 2) return null;
     var mature = item.frames.length - 3, g = Math.min(p.g || 0, mature);
-    if (p.dead) return { g: g, missed: DEAD, dead: true };
+    if (p.dead) return { g: g, missed: DEAD, dead: true, crop: false };
     hist = hist || history(s);
     var day = today(), now = dayNo(day);
     var last = isDay(p.t) ? dayNo(p.t) : now;       // the last day with reviews, so far
     var on = isDay(s.vac) ? dayNo(s.vac) : Infinity; // vacation on since this day, if it still is
     var frozen = 0;                                  // VACATION days since last, before on
+    // the crop: the first day a growth day can bring one (none while it isn't mature), and the last growth day
+    var since = g === mature ? last : Infinity, grew = -Infinity;
     // finished days without reviews from last up to day d, leaving out vacation days
     function missedTo(d) { return d - last - 1 - frozen - Math.max(0, d - Math.max(last + 1, on)); }
     var i = 0, j = hist.length;                      // skip to day t, or the first day after it if it has no entry
@@ -546,15 +591,18 @@
         if (hist[i][1] & VACATION && hist[i][0] < on) frozen++;
         continue;
       }
-      if (missedTo(hist[i][0]) >= DEAD) return { g: g, missed: DEAD, dead: true };
-      if (g < mature) g++;
-      last = hist[i][0];
+      if (missedTo(hist[i][0]) >= DEAD) return { g: g, missed: DEAD, dead: true, crop: false };
+      if (g < mature && ++g === mature) since = hist[i][0] + 1; // mature from the day after
+      grew = last = hist[i][0];
       frozen = 0;
     }
     var missed = Math.max(0, missedTo(now));
-    if (missed >= DEAD) return { g: g, missed: missed, dead: true };
+    if (missed >= DEAD) return { g: g, missed: missed, dead: true, crop: false };
+    if (missed >= DYING) since = now;               // dying, or back from it today: its crop is lost
     if (s.days[day] & REVIEWED) missed = 0;
-    return { g: g, missed: missed, dead: false };
+    var picked = isDay(p.h) ? dayNo(p.h) : -Infinity;
+    return { g: g, missed: missed, dead: false,
+      crop: cropOf(item) > 0 && on === Infinity && grew >= Math.max(since, picked) };
   }
   /** The frame a placed item shows, given its lifeOf. */
   function stageFrame(item, life) {
@@ -636,6 +684,38 @@
     return (bugArt = c.toDataURL());
   }
 
+  // A ready crop's glint: a 4-point star, its arms narrowing to the tips, as one 11×11 pixel map (W white, w cream,
+  // g gold, d deep gold at the tips) shown at GLINT_PX garden px a pixel, pixelated. A ready plant shows one, still,
+  // above its picture (showCrop)
+  var GLINT = [".....d.....", ".....g.....", ".....g.....", "....gwg....", "...gwWwg...", "dggwWWWwggd",
+    "...gwWwg...", "....gwg....", ".....g.....", ".....g.....", ".....d....."];
+  var GLINT_INK = { W: "#ffffff", w: "#fff3b8", g: "#f3b72f", d: "#d98a1c" };
+  var GLINT_W = 11, GLINT_PX = 4;
+  var GLINT_SINK = 10;                      // garden px of the still glint that reach down onto the top of its plant
+  var glintArt = null;
+  /** The glint's picture as an image URL, drawn once a page. */
+  function glintSheet() {
+    if (glintArt) return glintArt;
+    var c = document.createElement("canvas");
+    c.width = c.height = GLINT_W;
+    var g = c.getContext("2d");
+    GLINT.forEach(function (row, y) {
+      for (var x = 0; x < row.length; x++) {
+        if (!GLINT_INK[row[x]]) continue;
+        g.fillStyle = GLINT_INK[row[x]];
+        g.fillRect(x, y, 1, 1);
+      }
+    });
+    return (glintArt = c.toDataURL());
+  }
+  /** A new glint: a .kg-glint div showing the star, GLINT_W·GLINT_PX garden px a side, for the caller to place. */
+  function glint() {
+    var d = el("div", "kg-glint"), size = GLINT_W * GLINT_PX + "px";
+    d.style.width = d.style.height = d.style.backgroundSize = size;
+    d.style.backgroundImage = "url(" + glintSheet() + ")";
+    return d;
+  }
+
   /** Pay one coin unless this card already paid today. Either way, today is a day with reviews.
    *  On vacation nothing is paid and today isn't a day with reviews, but the card's coin for today is
    *  used up all the same: answered again after vacation is switched off, it pays nothing. */
@@ -661,7 +741,8 @@
   /** Switch vacation on (from today) or off. Off marks every day it was on VACATION, from vac through
    *  today. If the clock is now behind vac (a flight west, say), it marks today and vac's day, so that day
    *  never turns into a missed day later, but never more than one day ahead (a clock set a year ahead
-   *  would otherwise freeze the year to come). Switching it doesn't change any plant now. */
+   *  would otherwise freeze the year to come). Switching it doesn't change any plant's stage now; only its crop,
+   *  which is none while it's on (lifeOf). */
   function vacation(s, on) {
     if (on) { if (!isDay(s.vac)) s.vac = today(); return; }
     if (!isDay(s.vac)) return;
@@ -929,6 +1010,7 @@
     var placing = null;       // item key being placed
     var selected = null;      // placed id
     var composting = false;   // the hint asks to compost every dead plant (compost all), all of them outlined
+    var capped = false;       // the hint says today's picking has reached PICK_CAP (harvest), until a tap or its OK
     var here = mapAt(s);      // the map shown
     var goSize = [0, 0];      // the selected sign's label's size, read once each time it's shown (showGo)
     var shownScale = null;    // the camera's scale as the world's --kg-s last had it
@@ -994,7 +1076,8 @@
       return { x: (cx - r.left - cam.x) / cam.s, y: (cy - r.top - cam.y) / cam.s };
     }
 
-    // placed items: a .kg-item (its spot, depth, selection and pop) around its picture (frame, shadow and sway)
+    // placed items: a .kg-item (its spot, depth, selection and pop) around its picture (frame, shadow and sway), and
+    // over the picture, while it has a crop, its glint (showCrop)
     function drawPlaced(p) {
       var item = ITEMS[p.k];
       if (!item || onMapOf(p) !== here) return;
@@ -1018,8 +1101,31 @@
         pic.style.transformOrigin = f.ax * KG_SCALE + "px 0";
         pic.style.transform = p.f ? "scaleX(-1)" : "";
       }
-      swing(pic, f, swaying(p));
+      var sw = swaying(p);
+      swing(pic, f, sw);
+      showCrop(d, p, f, sw);
     }
+    /** Show the glint of placed plant p, on its node d, while it has a crop (ripe), or take it away. The glint sits in
+     *  a .kg-ripe box after the picture (f: the frame it shows), the picture's size and place and swaying with it
+     *  (sw, swing), so it rides the sway and the map's zoom without the picture's shadow: centred over the picture,
+     *  just above its top. The box is the node's second child; more glints can go in it. */
+    function showCrop(d, p, f, sw) {
+      var box = d.children[1] || null;
+      if (!ripe(p)) { if (box) box.remove(); return; }
+      if (!box) {
+        box = el("div", "kg-ripe");
+        box.append(glint());
+        d.append(box);
+      }
+      var w = f.w * KG_SCALE, size = GLINT_W * GLINT_PX, star = box.children[0];
+      box.style.width = w + "px";
+      box.style.height = f.h * KG_SCALE + "px";
+      star.style.left = (w - size) / 2 + "px";
+      star.style.top = GLINT_SINK - size + "px";
+      swing(box, f, sw);
+    }
+    /** Whether placed plant p has a crop to pick now (lifeOf). */
+    function ripe(p) { var l = life(p); return !!(l && l.crop); }
 
     // sway: on unless turned off in the settings (setSway), or by reduced motion; starts as prefSwitch
     // will set it, so the first drawing is already right
@@ -1178,6 +1284,7 @@
     function select(id) {
       var prev = selected;
       selected = id;
+      capped = false;              // the cap's note goes with the next tap, on the map or an item
       if (id != null) scare(id);   // no butterfly on the flower the player is about to move (pick leaves it out too)
       if (composting) askAll(false, true);
       if (prev != null && find(prev)) drawPlaced(find(prev));
@@ -1185,6 +1292,7 @@
       showHint();
     }
     function showHint() {
+      var noted = false;
       ui.hint.textContent = "";
       if (placing) {
         var it = ITEMS[placing];
@@ -1249,10 +1357,21 @@
           ui.hint.append(ok);
         }
         ui.hint.hidden = false;
+      } else if (capped) {
+        // today's picking has reached PICK_CAP (harvest): its OK, or the next tap (select), puts the note away
+        var note = el("span");
+        note.append.apply(note, coined(T.pickCap(PICK_CAP)));
+        var gotIt = el("button", "kg-btn kg-btn-go", T.ok);
+        gotIt.type = "button";
+        gotIt.addEventListener("click", function () { capped = false; showHint(); });
+        ui.hint.append(note, gotIt);
+        ui.hint.hidden = false;
+        noted = true;
       } else {
         ui.hint.hidden = true;
       }
       ui.hint.classList.toggle("kg-hint-all", composting && !ui.hint.hidden);
+      ui.hint.classList.toggle("kg-hint-note", noted);
       showGo();
     }
     /** Ask to compost every dead plant (on), outlining them all, or leave the question (off) for the selected
@@ -1279,6 +1398,40 @@
       showHint();
       renderGrid();
       flutter(true);
+    }
+    /** Pick placed plant p's crop (ripe): pay what it's worth as far as today's PICK_CAP goes, note the day on it (h)
+     *  and the crops picked today (s.picked), float the coins up from it (gain) and take its glint away, in one save;
+     *  earned stays as it is. A selection ends, as at a tap on the map. The first pick in a day that the cap cuts short
+     *  (paying less than its worth, or nothing) says so in the hint: s.picked counts what the crops were worth, paid
+     *  or not, so a count already past PICK_CAP means an earlier pick today was cut short, and said so. */
+    function harvest(p) {
+      var day = today(), worth = cropOf(ITEMS[p.k]);
+      var before = s.picked && s.picked.day === day ? s.picked.coins : 0;
+      var pay = Math.min(PICK_CAP, before + worth) - Math.min(PICK_CAP, before);
+      select(null);
+      s.picked = { day: day, coins: before + worth };
+      s.coins += pay;
+      p.h = day;
+      delete lives[p.id];
+      persist();
+      drawPlaced(p);
+      if (pay) {
+        gain(p, pay);
+        renderGrid();           // prices the player can now pay lose their grey
+      }
+      capped = before <= PICK_CAP && before + worth > PICK_CAP;
+      showHint();
+    }
+    /** Float n coins up from placed plant p, from the top of its picture, as a card's coin floats up from its chip
+     *  (kg-up): at screen size over the map, whatever the zoom, and taken away once that's done (1.1 s). */
+    function gain(p, n) {
+      var f = stageFrame(ITEMS[p.k], life(p)), up = el("div", "kg-gain"), coins = el("span");
+      coins.append.apply(coins, coined("¤+" + n));
+      up.append(coins);
+      up.style.left = cam.x + (p.x + (f.w / 2 - f.ax) * KG_SCALE) * cam.s + "px";
+      up.style.top = cam.y + (p.y - f.ay * KG_SCALE) * cam.s + "px";
+      view.append(up);
+      setTimeout(function () { up.remove(); }, 1100);
     }
     // maps: the one shown (here), the label of a selected sign, and walking to another
     /** Show map `here`: its picture (loaded the first time it's shown), its placed items, and its name and dots in the
@@ -1620,7 +1773,10 @@
     }
     function setVacation(on) {
       vacation(s, on);
-      hist = history(s);      // the stages stay as they are; later lifeOfs see the new days
+      hist = history(s);
+      // the stages stay as they are, but no crop is ready while it's on: their glints go, and come back after
+      lives = {};
+      onHere().forEach(drawPlaced);
       persist();
       showVacation();
       flutter(true);          // none while it's on
@@ -1685,6 +1841,7 @@
       hist = history(s);
       lives = {};
       composting = false;     // which plants are dead may change: back to the selected plant's own question
+      capped = false;         // the cap's note was for the day left
       onHere().forEach(drawPlaced);
       persist();
       showVacation();
@@ -1724,7 +1881,7 @@
       c.hidden = false;
     }
 
-    // touch: pan, pinch, tap, drag the selected item
+    // touch: pan, pinch, tap (to select, or to pick a ready crop), drag the selected item
     var pts = {}, gesture = null;
     function count() { return Object.keys(pts).length; }
     function pair() { var k = Object.keys(pts); return [pts[k[0]], pts[k[1]]]; }
@@ -1780,6 +1937,7 @@
       if (!gesture.moved && e.type === "pointerup") {
         if (placing) place(placing, toWorld(e.clientX, e.clientY));
         else if (gesture.id != null && gesture.id === selected && selectedSign()) walk(signTo(selectedSign()));   // a second tap
+        else if (gesture.id != null && ripe(find(gesture.id))) harvest(find(gesture.id));     // the next tap selects it
         else if (gesture.id != null) select(gesture.id === selected ? null : gesture.id);
         else select(null);
       }
@@ -1993,6 +2151,10 @@
     // the sway: angle, length, delay and transform-origin per plant (swing)
     ".kg-sway{animation:kg-sway 3s ease-in-out infinite alternate}",
     "@keyframes kg-sway{from{transform:skewX(calc(-1*var(--kg-a)))}to{transform:skewX(var(--kg-a))}}",
+    // a ready crop's glint (glint: its size and picture), in a box over its plant's picture that sways with it
+    // (showCrop: the box's size, and the glint's place)
+    ".kg-ripe{position:absolute;left:0;top:0}",
+    ".kg-glint{position:absolute;background-repeat:no-repeat;image-rendering:pixelated}",
     // a butterfly: above every item (an item's z-index is its y, at most WORLD_H), under the garden's UI
     // (outside the world); taps go through it. Size, sheet and place per butterfly (newBug, drawBug)
     ".kg-bug{position:absolute;left:0;top:0;z-index:2000;background-repeat:no-repeat;image-rendering:pixelated;",
@@ -2003,13 +2165,20 @@
     "width:fit-content;margin:0 auto;padding:3px 4px 3px 10px;background:rgba(244,230,196,.92);",
     "border:2px solid var(--kg-wood-dark);border-radius:999px;font-size:13px;font-weight:700;white-space:nowrap;pointer-events:none}",
     ".kg-hint>span{overflow:hidden;text-overflow:ellipsis}",
-    // the compost-all question is too long for one line on a phone: it wraps, at its spaces only (keep-all keeps
-    // the kana words whole), in a pill with smaller corners for two lines
-    ".kg-hint-all{border-radius:18px}",
-    ".kg-hint-all>span{white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.35}",
+    // the compost-all question is too long for one line on a phone, as is the harvest's note in English: each wraps,
+    // at its spaces only (keep-all keeps the kana words whole), in a pill with smaller corners for two lines
+    ".kg-hint-all,.kg-hint-note{border-radius:18px}",
+    ".kg-hint-all>span,.kg-hint-note>span{white-space:normal;word-break:keep-all;overflow-wrap:anywhere;line-height:1.35}",
     ".kg-hint .kg-sprite{flex:none}",
     ".kg-hint .kg-btn{flex:none;min-height:30px;padding:2px 10px;pointer-events:auto;border-radius:999px}",   // only the text gives way
     ".kg-hint .kg-x{width:30px;padding:0}",
+    // the coins from a pick, floating up over the map at screen size (gain): the div is the spot, set in px, and its
+    // coins sit centred above it
+    ".kg-gain{position:absolute;z-index:3;pointer-events:none;animation:kg-up 1.1s ease-out forwards}",
+    ".kg-gain>span{position:absolute;left:0;bottom:0;display:flex;align-items:center;gap:3px;transform:translateX(-50%);",
+    "color:#ffe9a6;font-size:18px;font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;",
+    "text-shadow:1px 1px 0 var(--kg-wood-dark),-1px 1px 0 var(--kg-wood-dark),1px -1px 0 var(--kg-wood-dark),",
+    "-1px -1px 0 var(--kg-wood-dark),0 2px 0 var(--kg-wood-dark)}",
     ".kg-zoom{position:absolute;right:8px;bottom:8px;z-index:5;display:flex;flex-direction:column;gap:6px}",
     ".kg-zbtn{width:40px;min-height:40px;padding:0;font-size:20px}",
     ".kg-shop{position:relative;display:flex;flex-direction:column;height:clamp(170px,40%,340px);background:var(--kg-paper);",
@@ -2068,12 +2237,12 @@
     ".kg-shop-min .kg-badge{margin:4px 0 0;padding:3px 0;text-combine-upright:all}",    // the count upright, below the name
     ".kg-shop-min .kg-confirm{position:fixed;left:8px;right:62px;bottom:8px}",
     ".kg-shop-min .kg-btn.kg-fold{right:7px}}",
-    "@media (prefers-reduced-motion:reduce){.kg-plus,.kg-pop,.kg-toast,.kg-sway{animation:none}.kg-plus{opacity:0}.kg-bug{display:none}.kg-veil{display:none}",
+    "@media (prefers-reduced-motion:reduce){.kg-plus,.kg-gain,.kg-pop,.kg-toast,.kg-sway{animation:none}.kg-plus{opacity:0}.kg-bug{display:none}.kg-veil{display:none}",
     ".kg-switch::after,.kg-bar{transition:none}}"
   ].join("");
 
   window.KanpekiGarden = { mount: mount, load: load, save: save, earn: earn, life: lifeOf, swayOf: swayOf,
-    butterflies: butterflies, blooms: blooms, items: ITEMS, text: TEXT, maps: MAPS };
+    butterflies: butterflies, blooms: blooms, cropOf: cropOf, items: ITEMS, text: TEXT, maps: MAPS };
 
   // On a card: mount into #kg in AnkiDroid's study screen only (ankidroid-reviewer.js defines
   // ankidroid.userAction; the previewer and desktop Anki do not).

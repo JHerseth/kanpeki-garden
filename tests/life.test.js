@@ -261,7 +261,7 @@ test("plants enrolled on a day with reviews stay mature, and wilt on the usual d
   assert.strictEqual(frameOf(look(stored, at(TUE, 4), 1), 1), MATURE);
   assert.strictEqual(frameOf(look(stored, at(WED, 4)), 1), MATURE);
   assert.deepStrictEqual(plain(g.win.KanpekiGarden.life(saved(stored), saved(stored).placed[0])),
-    { g: MATURE, missed: 0, dead: false });
+    { g: MATURE, missed: 0, dead: false, crop: false });
   assert.strictEqual(frameOf(look(stored, at(FRI, 3, 59)), 1), MATURE);
   assert.strictEqual(frameOf(look(stored, at(FRI, 4)), 1), DYING);           // Wednesday and Thursday missed
 });

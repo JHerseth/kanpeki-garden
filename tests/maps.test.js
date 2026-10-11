@@ -635,8 +635,9 @@ test("plants on a map that isn't shown still grow, wilt and die", () => {
     const s = saved(stored);
     return s.placed.slice(0, 2).map((p) => plain(win.KanpekiGarden.life(s, p)));
   };
-  assert.deepStrictEqual(grow(8), [{ g: 2, missed: 0, dead: false }, { g: 2, missed: 0, dead: false }]);
-  assert.deepStrictEqual(grow(10), [{ g: 2, missed: 2, dead: false }, { g: 2, missed: 2, dead: false }]);
+  const living = (missed) => ({ g: 2, missed, dead: false, crop: false });
+  assert.deepStrictEqual(grow(8), [living(0), living(0)]);
+  assert.deepStrictEqual(grow(10), [living(2), living(2)]);
   const stored = stored3({ maps: ["riverside"], days, next: 4, placed });
   const root = openGarden(page(stored, { now: at(12) }));     // opened at home
   assert.deepStrictEqual(saved(stored).placed.slice(0, 2).map((p) => p.dead), [TODAY, TODAY], "both found dead");
