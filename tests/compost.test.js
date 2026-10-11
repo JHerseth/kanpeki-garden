@@ -160,18 +160,23 @@ test("「はい」 composts every dead plant and nothing else, for the summed co
   assert.strictEqual(byClass(again.root, "kg-item").length, 3);
 });
 
-test("the shop and the butterflies are redrawn: the bag's count stays, 5 living flowers keep their butterfly", () => {
-  const living = Array.from({ length: 5 }, (_, i) => livingOne(i + 1, "rose_pink"));
-  const dead = [deadOne(6, "rose_pink"), deadOne(7, "phlox")];
-  const g = garden(living.concat(dead), { save: { inv: { watering_can: 2 } } });
+test("the shop sees the new coins; the bag's count and the butterflies stay", () => {
+  // MIXED with 4 more living roses: 5 living flowers, one butterfly
+  const more = Array.from({ length: 4 }, (_, i) => livingOne(i + 7, "rose_pink"));
+  const g = garden(MIXED().concat(more), { save: { inv: { watering_can: 2 } } });
+  byClass(g.root, "kg-tab").find((n) => n.textContent === "花").click();
+  const rose = () => byClass(g.root, "kg-card").find((c) => byClass(c, "kg-name")[0].textContent === "ピンクのバラ");
+  assert.ok(rose().classList.contains("kg-poor"));            // 20 coins; the player has 3
   assert.strictEqual(bugs(g.root).length, 1);
-  touch(g.root, 7);
-  button(g.root, "ぜんぶ ×2").click();
+  touch(g.root, 1);
+  button(g.root, "ぜんぶ ×3").click();
   button(g.root, "はい").click();
+  assert.strictEqual(saved(g.stored).coins, 32);
+  assert.ok(!rose().classList.contains("kg-poor"));           // the shop sees the coins at once
   assert.strictEqual(bugs(g.root).length, 1);
   const bag = byClass(g.root, "kg-tab").find((n) => /もちもの/.test(n.textContent));
   assert.strictEqual(byClass(bag, "kg-badge")[0].textContent, "2");
-  assert.deepStrictEqual(saved(g.stored).placed.map((p) => p.id), [1, 2, 3, 4, 5]);
+  assert.deepStrictEqual(saved(g.stored).placed.map((p) => p.id), [2, 4, 5, 7, 8, 9, 10]);
 });
 
 test("compost all works on vacation, which stays on", () => {

@@ -107,8 +107,8 @@
       cancel: "やめる",
       compost: function (n) { return "たいひにする？ ¤+" + n; },
       // compost all: the button beside 「はい」 with the count of dead plants, then its question with their coins
-      compostAll: function (n) { return "ぜんぶ ×" + n; },
-      compostAllAsk: function (n, back) { return "かれた くさばな ×" + n + " を ぜんぶ たいひにする？ ¤+" + back; },
+      compostAll: function (n) { return "ぜんぶ " + TEXT.ja.count(n); },
+      compostAllAsk: function (n, back) { return "かれた くさばな " + TEXT.ja.count(n) + " を ぜんぶ たいひにする？ ¤+" + back; },
       yes: "はい",
       drag: "ゆびで うごかせるよ",
       putAway: "しまう",
@@ -1038,7 +1038,8 @@
       ui.hint.classList.toggle("kg-hint-all", composting && !ui.hint.hidden);
     }
     /** Ask to compost every dead plant (on), outlining them all, or leave the question (off) for the selected
-     *  plant's own; quiet: only the outlines, for select, which then shows its own hint. */
+     *  plant's own; quiet: only the outlines, for select, which calls it after selected has already changed (so
+     *  the newly selected plant keeps its outline) and then shows its own hint. */
     function askAll(on, quiet) {
       composting = on;
       s.placed.forEach(function (p) { if (dead(p) && p.id !== selected) drawPlaced(p); });
