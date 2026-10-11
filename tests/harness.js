@@ -7,7 +7,7 @@ const vm = require("node:vm");
 const DIR = path.join(__dirname, "..");
 const CATALOG = fs.readFileSync(path.join(DIR, "catalog.js"), "utf8");
 const GARDEN = fs.readFileSync(path.join(DIR, "garden.js"), "utf8");
-const KEY = "kanpekikun-garden-2";           // the save, v: 2
+const KEY = "kanpekikun-garden-2";           // the save, v: 3 (the key is from v: 2)
 const OLD_KEY = "kanpekikun-garden";         // v: 1's, left as it was
 
 class Style { setProperty(k, v) { this[k] = v; } }
