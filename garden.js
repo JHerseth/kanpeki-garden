@@ -4,6 +4,8 @@
  *     <div id="kg" data-kg="garden" data-card="{{CardID}}"></div>
  *     <script src="_garden.js"></script>
  * data-kg="garden": coin chip that opens the garden; "toast": only a short "+1" on the card.
+ * data-lang="en": every text in English, item names too (TEXT.en); without it, or with any other value, Japanese.
+ * The save is the same in both, so a template can switch at any time.
  * data-dev="1" (only in a test profile's templates, never in the ones the player studies with): the garden's
  * settings get a 「テスト」 section: 「+100」 adds coins without counting them in earned, 「+150」 places 150 mature
  * plants for free (a performance test), and 「−1日」「+1日」 move the garden's day (the test day offset; see
@@ -72,10 +74,131 @@
   KG_CATALOG.forEach(function (e) {
     // frames (format in catalog.js): a, x, y, w, h on atlas a; ax, ay: the anchor that goes on the item's place.
     // pic: the frame that shows the item, its mature frame (the last growth frame) or its only one.
-    var frames = e[5].map(function (f) { return { a: f[0], x: f[1], y: f[2], w: f[3], h: f[4], ax: f[5], ay: f[6] }; });
-    ITEMS[e[0]] = { key: e[0], name: e[1], tab: e[2], price: e[3], sold: e[4], frames: frames,
+    var frames = e[6].map(function (f) { return { a: f[0], x: f[1], y: f[2], w: f[3], h: f[4], ax: f[5], ay: f[6] }; });
+    ITEMS[e[0]] = { key: e[0], name: e[1], en: e[2], tab: e[3], price: e[4], sold: e[5], frames: frames,
       pic: frames[frames.length > 1 ? frames.length - 3 : 0] };
   });
+
+  // ---- text ----------------------------------------------------------------------------------
+  /* Every piece of the UI's text, one table per language with the same keys: TEXT.ja, or TEXT.en on a slot with
+   * data-lang="en" (langOf). tabs: the shop tabs' labels, in TABS' order (TABS' own names stay the keys the catalog
+   * and the code use). name(ja, en): an item's name, from its two in the catalog. Text with a number in it is a
+   * function of the number; a ¤ in a text is where a coin goes (coined). */
+  var TEXT = {
+    ja: {
+      tabs: ["もちもの", "花", "はちうえ", "やさい", "草木", "木", "かざり"],
+      name: function (ja) { return ja; },
+      // the card's chip and toast
+      openGarden: "にわを ひらく",
+      openResting: "にわを ひらく（おやすみ中）",
+      resting: "おやすみ中",
+      toast: function (n) { return "¤ +1（" + n + "）"; },
+      // the top bar and the map
+      garden: "にわ",
+      title: "わたしのにわ",
+      settings: "せってい",
+      close: "とじる",
+      zoomIn: "おおきく",
+      zoomOut: "ちいさく",
+      // hints over the map
+      tapToPlace: "タップ して おいてね",
+      cancel: "やめる",
+      compost: function (n) { return "たいひにする？ ¤+" + n; },
+      yes: "はい",
+      drag: "ゆびで うごかせるよ",
+      putAway: "しまう",
+      ok: "OK",
+      // the shop
+      emptyBag: "まだ なにも もっていないよ。おみせで かってね。",
+      emptyTab: "ここには なにも ないよ。",
+      buyAsk: function (price, left) { return "¤" + price + " で かう？ のこりは " + left; },
+      buy: "かう",
+      tooFew: function (n) { return "あと " + n + " コイン たりないよ。カードを がんばろう！"; },
+      openShop: "おみせを ひらく",
+      foldShop: "おみせを たたむ",
+      // notes
+      listSep: "、",
+      goneFromShop: function () { return " は おみせから なくなったよ。"; },
+      locked: "いまは にわを ひらけないよ",
+      // the settings
+      closeSettings: "せっていを とじる",
+      motionOff: "スマホの せっていで とまっているよ",
+      sway: "くさばなが ゆれる",
+      butterflies: "ちょうちょが とぶ",
+      vacation: "おやすみ",
+      vacationAsk: "おやすみに する？",
+      vacationKeep: "にわが とまるよ。コインは もらえないよ。",
+      test: "テスト",
+      testCoins: "テスト：コイン +100",
+      testPlants: "テスト：しょくぶつ +150",
+      dayBack: "−1日",
+      dayOn: "+1日",
+      testDayBack: "テスト：1日 もどす",
+      testDayOn: "テスト：1日 すすめる",
+      dayMoved: function (n) { return "きょう" + signed(n) + "日 ✕"; },
+      testDayMoved: function (n) { return "テスト：きょうを " + signed(n) + "日 ずらしている（タップで もどす）"; }
+    },
+    en: {
+      tabs: ["Bag", "Flowers", "Pots", "Veggies", "Bushes", "Trees", "Decor"],
+      name: function (ja, en) { return en; },
+      openGarden: "Open the garden",
+      openResting: "Open the garden (on vacation)",
+      resting: "On vacation",
+      toast: function (n) { return "¤ +1 (" + n + ")"; },
+      garden: "Garden",
+      title: "My garden",
+      settings: "Settings",
+      close: "Close",
+      zoomIn: "Zoom in",
+      zoomOut: "Zoom out",
+      tapToPlace: "Tap to put it down",
+      cancel: "Cancel",
+      compost: function (n) { return "Compost it? ¤+" + n; },
+      yes: "Yes",
+      drag: "Drag it to move it",
+      putAway: "Put away",
+      ok: "OK",
+      emptyBag: "Your bag is empty. Buy something in the shop!",
+      emptyTab: "Nothing here.",
+      buyAsk: function (price, left) { return "Buy for ¤" + price + "? You'll have " + left + " left."; },
+      buy: "Buy",
+      tooFew: function (n) {
+        return "You need " + n + (n === 1 ? " more coin" : " more coins") + ". Keep going with your cards!";
+      },
+      openShop: "Open the shop",
+      foldShop: "Fold the shop",
+      listSep: ", ",
+      goneFromShop: function (many) { return many ? " are gone from the shop." : " is gone from the shop."; },
+      locked: "The garden can't open right now",
+      closeSettings: "Close settings",
+      motionOff: "Turned off in your phone's settings",
+      sway: "Plants sway",
+      butterflies: "Butterflies fly",
+      vacation: "Vacation",
+      vacationAsk: "Go on vacation?",
+      vacationKeep: "The garden stops. No coins until it's over.",
+      test: "Test",
+      testCoins: "Test: 100 more coins",
+      testPlants: "Test: add 150 plants",
+      dayBack: "−1 day",
+      dayOn: "+1 day",
+      testDayBack: "Test: go back a day",
+      testDayOn: "Test: go on a day",
+      dayMoved: function (n) { return "Today " + signed(n) + (Math.abs(n) === 1 ? " day" : " days") + " ✕"; },
+      testDayMoved: function (n) {
+        return "Test: today is moved " + signed(n) + (Math.abs(n) === 1 ? " day" : " days") + " (tap to go back)";
+      }
+    }
+  };
+  /** The language of a card slot's text: "en" with data-lang="en", else "ja". */
+  function langOf(slot) { return slot.dataset.lang === "en" ? "en" : "ja"; }
+  /** Mark node n as text in lang, for its font and screen readers; Japanese, the garden's own, stays unmarked. */
+  function inLang(n, lang) {
+    if (lang !== "ja") n.setAttribute("lang", lang);
+    return n;
+  }
+  /** Whole number n with its sign: +2, −1 (a minus sign, not a hyphen). */
+  function signed(n) { return (n > 0 ? "+" : "−") + Math.abs(n); }
 
   // ---- state -------------------------------------------------------------------------------
   /* Save, v: 2:
@@ -136,7 +259,7 @@
     function take(k, n) {
       var name = KG_REMOVED[k][0];
       got[name] = (got[name] || 0) + n;
-      coins += KG_REMOVED[k][1] * n;
+      coins += KG_REMOVED[k][2] * n;
     }
     s.placed = s.placed.filter(function (p) {
       if (!KG_REMOVED[p.k]) return true;
@@ -385,6 +508,15 @@
     return n;
   }
   function coinIcon() { return el("span", "kg-coin"); }
+  /** Text t as nodes to append, with a coin icon for each ¤ in it. */
+  function coined(t) {
+    var out = [];
+    t.split("¤").forEach(function (part, i) {
+      if (i) out.push(coinIcon());
+      if (part) out.push(document.createTextNode(part));
+    });
+    return out;
+  }
   /** A div showing one frame from its atlas, scaled by s (or div d, redrawn). */
   function sprite(f, s, d) {
     var atlas = KG_ATLAS[f.a];
@@ -456,24 +588,25 @@
     var mode = slot.dataset.kg || "garden";
     var card = slot.dataset.card;
     var dev = slot.dataset.dev === "1";
+    var lang = langOf(slot), T = TEXT[lang];
     shift = dev ? devShift() : 0;     // before earn(), so a test day pays and counts as that day
     var res = /^\d+$/.test(card || "") ? earn(card) : { s: load(), gained: false };
     if (mode === "toast") {
       if (res.gained) {
-        var t = el("div", "kg-toast");
-        t.append(coinIcon(), document.createTextNode(" +1（" + res.s.coins + "）"));
+        var t = inLang(el("div", "kg-toast"), lang);
+        t.append.apply(t, coined(T.toast(res.s.coins)));
         slot.append(t);
         setTimeout(function () { t.remove(); }, 1600);
       }
       return;
     }
-    var chip = el("button", "kg-chip tappable");
+    var chip = inLang(el("button", "kg-chip tappable"), lang);
     chip.type = "button";
     var n = el("span", "kg-chip-n", String(res.s.coins));
-    var vac = el("span", "kg-chip-vac", "おやすみ中");
+    var vac = el("span", "kg-chip-vac", T.resting);
     function showVacation(s) {
       vac.hidden = !isDay(s.vac);
-      chip.setAttribute("aria-label", vac.hidden ? "にわを ひらく" : "にわを ひらく（おやすみ中）");
+      chip.setAttribute("aria-label", vac.hidden ? T.openGarden : T.openResting);
     }
     showVacation(res.s);
     chip.append(coinIcon(), n, vac);
@@ -494,21 +627,22 @@
     shift = dev ? devShift() : 0;
     var s = load();
     var ui = {};
-    var root = el("div", "kg-root tappable");
+    var lang = langOf(slot), T = TEXT[lang];
+    var root = inLang(el("div", "kg-root tappable"), lang);
     root.setAttribute("role", "dialog");
-    root.setAttribute("aria-label", "にわ");
+    root.setAttribute("aria-label", T.garden);
 
     // top bar
     var top = el("div", "kg-top");
-    var title = el("div", "kg-title", "わたしのにわ");
+    var title = el("div", "kg-title", T.title);
     var purse = el("div", "kg-purse");
     ui.coins = el("span", "kg-purse-n");
     purse.append(coinIcon(), ui.coins);
     var gear = el("button", "kg-btn kg-gear");
     gear.type = "button";
-    gear.setAttribute("aria-label", "せってい");
+    gear.setAttribute("aria-label", T.settings);
     gear.setAttribute("aria-haspopup", "dialog");
-    var close = el("button", "kg-btn kg-close", "とじる");
+    var close = el("button", "kg-btn kg-close", T.close);
     close.type = "button";
     top.append(title, purse, gear, close);
 
@@ -517,20 +651,20 @@
     var menu = el("div", "kg-menu");          // the dimmed garden around the panel; a tap on it closes the panel
     var panel = el("div", "kg-panel");
     panel.setAttribute("role", "dialog");
-    panel.setAttribute("aria-label", "せってい");
+    panel.setAttribute("aria-label", T.settings);
     var head = el("div", "kg-panel-h");
-    var menuClose = el("button", "kg-btn", "とじる");
+    var menuClose = el("button", "kg-btn", T.close);
     menuClose.type = "button";
-    menuClose.setAttribute("aria-label", "せっていを とじる");
-    head.append(el("strong", null, "せってい"), menuClose);
+    menuClose.setAttribute("aria-label", T.closeSettings);
+    head.append(el("strong", null, T.settings), menuClose);
     var prefList = el("div", "kg-prefs");
-    var stillNote = el("p", "kg-note", "スマホの せっていで とまっているよ");
+    var stillNote = el("p", "kg-note", T.motionOff);
     stillNote.hidden = true;
     // the vacation switch: the player's to turn on and off
     var vacBtn = el("button", "kg-opt kg-vac");
     vacBtn.type = "button";
     vacBtn.setAttribute("role", "switch");
-    vacBtn.append(el("span", null, "おやすみ"), el("span", "kg-switch"));
+    vacBtn.append(el("span", null, T.vacation), el("span", "kg-switch"));
     vacBtn.disabled = !!s.locked;
     panel.append(head, prefList, stillNote, vacBtn);
     // test controls, on a dev slot only: coins without reviews (not counted in earned), 150 free plants, and the
@@ -538,12 +672,12 @@
     if (dev) {
       var devSet = el("div", "kg-devset");
       devSet.setAttribute("role", "group");
-      devSet.setAttribute("aria-label", "テスト");
-      var devBtn = devButton("+100", "テスト：コイン +100"), fillBtn = devButton("+150", "テスト：しょくぶつ +150");
-      var dayBack = devButton("−1日", "テスト：1日 もどす"), dayOn = devButton("+1日", "テスト：1日 すすめる");
+      devSet.setAttribute("aria-label", T.test);
+      var devBtn = devButton("+100", T.testCoins), fillBtn = devButton("+150", T.testPlants);
+      var dayBack = devButton(T.dayBack, T.testDayBack), dayOn = devButton(T.dayOn, T.testDayOn);
       var dayLabel = devButton("", "");
       dayLabel.classList.add("kg-dev-day");
-      devSet.append(el("span", "kg-devset-h", "テスト"), devBtn, fillBtn, dayBack, dayLabel, dayOn);
+      devSet.append(el("span", "kg-devset-h", T.test), devBtn, fillBtn, dayBack, dayLabel, dayOn);
       panel.append(devSet);
     }
     panel.append(el("p", "kg-ver", VERSION === "dev" ? VERSION : "v" + VERSION));
@@ -565,13 +699,13 @@
     ui.hint = el("div", "kg-hint");
     ui.hint.hidden = true;
     view.append(ui.hint);
-    ui.vac = el("div", "kg-vac-badge", "おやすみ中");
+    ui.vac = el("div", "kg-vac-badge", T.resting);
     view.append(ui.vac);
     var zoom = el("div", "kg-zoom");
     var zin = el("button", "kg-btn kg-zbtn", "＋"), zout = el("button", "kg-btn kg-zbtn", "－");
     zin.type = zout.type = "button";
-    zin.setAttribute("aria-label", "おおきく");
-    zout.setAttribute("aria-label", "ちいさく");
+    zin.setAttribute("aria-label", T.zoomIn);
+    zout.setAttribute("aria-label", T.zoomOut);
     zoom.append(zin, zout);
     view.append(zoom);
 
@@ -615,6 +749,11 @@
       b.setAttribute("aria-label", label);
       b.disabled = !!s.locked;
       return b;
+    }
+    /** The name T gives the removed item that a refund note calls `name`, its Japanese name. */
+    function removedName(name) {
+      for (var k in KG_REMOVED) if (KG_REMOVED[k][0] === name) return T.name(name, KG_REMOVED[k][1]);
+      return name;
     }
     function life(p) { return p.id in lives ? lives[p.id] : (lives[p.id] = lifeOf(s, p, hist)); }
     function dead(p) { var l = life(p); return !!(l && l.dead); }
@@ -831,10 +970,10 @@
       ui.hint.textContent = "";
       if (placing) {
         var it = ITEMS[placing];
-        ui.hint.append(thumb(it, 26), el("span", null, "タップ して おいてね"));
+        ui.hint.append(thumb(it, 26), el("span", null, T.tapToPlace));
         var cancel = el("button", "kg-btn kg-x", "✕");
         cancel.type = "button";
-        cancel.setAttribute("aria-label", "やめる");
+        cancel.setAttribute("aria-label", T.cancel);
         cancel.addEventListener("click", function () { setPlacing(null); showHint(); renderGrid(); });
         ui.hint.append(cancel);
         ui.hint.hidden = false;
@@ -843,25 +982,25 @@
         if (dead(p)) {
           // a dead plant can't move: it can only go to the compost, for a quarter of its price
           var back = Math.floor(item.price / 4);
-          var ask = el("span", null, "たいひにする？ ");
-          ask.append(coinIcon(), document.createTextNode("+" + back));
-          var yes = el("button", "kg-btn kg-btn-go", "はい");
+          var ask = el("span");
+          ask.append.apply(ask, coined(T.compost(back)));
+          var yes = el("button", "kg-btn kg-btn-go", T.yes);
           yes.type = "button";
           yes.addEventListener("click", function () { s.coins += back; takeAway(p); });
           var no = el("button", "kg-btn kg-x", "✕");
           no.type = "button";
-          no.setAttribute("aria-label", "やめる");
+          no.setAttribute("aria-label", T.cancel);
           no.addEventListener("click", function () { select(null); });
           ui.hint.append(ask, yes, no);
         } else {
-          ui.hint.append(el("span", null, "ゆびで うごかせるよ"));
+          ui.hint.append(el("span", null, T.drag));
           if (item.tab === "かざり") {         // plants stay in the garden; decorations can go back
-            var stash = el("button", "kg-btn", "しまう");
+            var stash = el("button", "kg-btn", T.putAway);
             stash.type = "button";
             stash.addEventListener("click", function () { s.inv[p.k] = (s.inv[p.k] || 0) + 1; takeAway(p); });
             ui.hint.append(stash);
           }
-          var ok = el("button", "kg-btn kg-btn-go", "OK");
+          var ok = el("button", "kg-btn kg-btn-go", T.ok);
           ok.type = "button";
           ok.addEventListener("click", function () { select(null); });
           ui.hint.append(ok);
@@ -904,8 +1043,8 @@
     // shop
     function renderTabs() {
       tabs.textContent = "";
-      TABS.forEach(function (t) {
-        var b = el("button", "kg-tab", t);
+      TABS.forEach(function (t, i) {
+        var b = el("button", "kg-tab", T.tabs[i]);
         b.type = "button";
         b.setAttribute("role", "tab");
         b.setAttribute("aria-selected", String(t === tab));
@@ -930,16 +1069,14 @@
         ? Object.keys(s.inv).map(function (k) { return ITEMS[k]; }).filter(Boolean)
         : KG_CATALOG.map(function (e) { return ITEMS[e[0]]; }).filter(function (i) { return i.tab === tab && i.sold; });
       if (!list.length) {
-        grid.append(el("p", "kg-empty", tab === "もちもの"
-          ? "まだ なにも もっていないよ。おみせで かってね。"
-          : "ここには なにも ないよ。"));
+        grid.append(el("p", "kg-empty", tab === "もちもの" ? T.emptyBag : T.emptyTab));
       }
       list.forEach(function (item) {
         var b = el("button", "kg-card");
         b.type = "button";
         var box = el("div", "kg-thumb");
         box.append(thumb(item, 56));
-        b.append(box, el("span", "kg-name", item.name));
+        b.append(box, el("span", "kg-name", T.name(item.name, item.en)));
         if (tab === "もちもの") {
           b.append(el("span", "kg-count", "×" + s.inv[item.key]));
           if (placing === item.key) b.classList.add("kg-on");
@@ -961,12 +1098,12 @@
       var box = el("div", "kg-thumb");
       box.append(thumb(item, 56));
       var text = el("div", "kg-ctext");
-      text.append(el("strong", null, item.name));
+      text.append(el("strong", null, T.name(item.name, item.en)));
       if (s.coins >= item.price) {
         var line = el("span", null, "");
-        line.append(coinIcon(), document.createTextNode(item.price + " で かう？ のこりは " + (s.coins - item.price)));
+        line.append.apply(line, coined(T.buyAsk(item.price, s.coins - item.price)));
         text.append(line);
-        var buy = el("button", "kg-btn kg-btn-go", "かう");
+        var buy = el("button", "kg-btn kg-btn-go", T.buy);
         buy.type = "button";
         buy.addEventListener("click", function () {
           s.coins -= item.price;
@@ -978,13 +1115,13 @@
           showHint();
           renderGrid();
         });
-        var no = el("button", "kg-btn", "やめる");
+        var no = el("button", "kg-btn", T.cancel);
         no.type = "button";
         no.addEventListener("click", function () { c.hidden = true; });
         c.append(box, text, buy, no);
       } else {
-        text.append(el("span", null, "あと " + (item.price - s.coins) + " コイン たりないよ。カードを がんばろう！"));
-        var okb = el("button", "kg-btn", "OK");
+        text.append(el("span", null, T.tooFew(item.price - s.coins)));
+        var okb = el("button", "kg-btn", T.ok);
         okb.type = "button";
         okb.addEventListener("click", function () { c.hidden = true; });
         c.append(box, text, okb);
@@ -1000,7 +1137,7 @@
     function showFold() {
       root.classList.toggle("kg-shop-min", folded);
       foldBtn.textContent = sideways ? (folded ? "◀\uFE0E" : "▶\uFE0E") : (folded ? "▲" : "▼");   // FE0E: never an emoji
-      foldBtn.setAttribute("aria-label", folded ? "おみせを ひらく" : "おみせを たたむ");
+      foldBtn.setAttribute("aria-label", folded ? T.openShop : T.foldShop);
       foldBtn.setAttribute("aria-expanded", String(!folded));
     }
     /** Fold the shop (on) or open it, and fit the map to the space it leaves. mine: the player's own, so remembered. */
@@ -1102,11 +1239,11 @@
       if (isDay(s.vac)) { setVacation(false); return; }
       var c = confirmBox(true);
       var text = el("div", "kg-ctext");
-      text.append(el("strong", null, "おやすみに する？"), el("span", "kg-keep", "にわが とまるよ。コインは もらえないよ。"));
-      var yes = el("button", "kg-btn kg-btn-go", "はい");
+      text.append(el("strong", null, T.vacationAsk), el("span", "kg-keep", T.vacationKeep));
+      var yes = el("button", "kg-btn kg-btn-go", T.yes);
       yes.type = "button";
       yes.addEventListener("click", function () { c.hidden = true; setVacation(true); });
-      var no = el("button", "kg-btn", "やめる");
+      var no = el("button", "kg-btn", T.cancel);
       no.type = "button";
       no.addEventListener("click", function () { c.hidden = true; });
       c.append(text, yes, no);
@@ -1143,10 +1280,9 @@
     // the test day: by days on from the offset now, or null for the real day. Everything that depends on the
     // day is worked out again; plants found dead stay dead, as on a real day
     function showDay() {
-      var by = (shift > 0 ? "+" : "−") + Math.abs(shift) + "日";
       dayLabel.hidden = !shift;
-      dayLabel.textContent = shift ? "きょう" + by + " ✕" : "";
-      dayLabel.setAttribute("aria-label", shift ? "テスト：きょうを " + by + " ずらしている（タップで もどす）" : "");
+      dayLabel.textContent = shift ? T.dayMoved(shift) : "";
+      dayLabel.setAttribute("aria-label", shift ? T.testDayMoved(shift) : "");
     }
     function moveDay(by) {
       if (s.locked) return;
@@ -1170,21 +1306,24 @@
       showDay();
     }
 
-    // once, after load() paid back items the shop no longer sells
+    // once, after load() paid back items the shop no longer sells. The note names them in Japanese, as the save
+    // is the same in every language: removedName gives T's name for each
     function showRefund() {
       var r = s.refunded;
       if (!r) return;
       delete s.refunded;
       var c = confirmBox();
-      var names = Object.keys(r.items).map(function (n) { return n + (r.items[n] > 1 ? "×" + r.items[n] : ""); });
+      var got = Object.keys(r.items);
+      var names = got.map(function (n) { return removedName(n) + (r.items[n] > 1 ? "×" + r.items[n] : ""); });
       var text = el("div", "kg-ctext");
       var what = el("span", null, "");
-      what.append(el("strong", null, names.join("、")), document.createTextNode(" は おみせから なくなったよ。"));
+      what.append(el("strong", null, names.join(T.listSep)),
+        document.createTextNode(T.goneFromShop(got.length > 1 || r.items[got[0]] > 1)));
       text.append(what);
       var line = el("span", null, "");
       line.append(coinIcon(), document.createTextNode(" +" + r.coins));
       text.append(line);
-      var okb = el("button", "kg-btn", "OK");
+      var okb = el("button", "kg-btn", T.ok);
       okb.type = "button";
       okb.addEventListener("click", function () { c.hidden = true; });
       c.append(text, okb);
@@ -1287,7 +1426,7 @@
     s.placed.forEach(drawPlaced);
     showVacation();
     if (s.locked) {           // a save from a newer script (see load): say so instead of an empty garden
-      confirmBox().append(el("div", "kg-ctext", "いまは にわを ひらけないよ"));
+      confirmBox().append(el("div", "kg-ctext", T.locked));
       ui.confirm.hidden = false;
     }
     showRefund();
@@ -1299,8 +1438,8 @@
     cam.s = cam.fit;
     clamp();
     if (folded && !sideways) fillHeight();    // opened folded, upright: at fill height
-    prefSwitch("sway", "くさばなが ゆれる", setSway);
-    prefSwitch("butterflies", "ちょうちょが とぶ", setBugs);
+    prefSwitch("sway", T.sway, setSway);
+    prefSwitch("butterflies", T.butterflies, setBugs);
     requestAnimationFrame(function () {
       refit();
       if (folded && !sideways && !filled && wholeShown()) fillHeight();    // opened before the view was laid out
@@ -1320,6 +1459,9 @@
     ".kg-root,.kg-chip,.kg-toast{--kg-wood:#7a4b2a;--kg-wood-dark:#4a2c17;--kg-paper:#f4e6c4;--kg-paper-2:#e9d4a4;",
     "--kg-ink:#3a2614;--kg-gold:#f3b72f;--kg-gold-dark:#a86c0c;--kg-leaf:#3f7d32;--kg-shade:#203a1c;--kg-night:#2f3a63;",
     "--kg-font:'KG Klee','Klee One','Hiragino Maru Gothic ProN','Noto Sans JP',sans-serif;font-family:var(--kg-font)}",
+    // English (inLang): a rounded sans the phone may have, else its own; Klee One is for kana
+    ".kg-root[lang=en],.kg-chip[lang=en],.kg-toast[lang=en]{--kg-font:ui-rounded,'SF Pro Rounded','Nunito','Varela Round',",
+    "'Quicksand',system-ui,sans-serif}",
     ".kg-coin{display:inline-block;width:1em;height:1em;border-radius:50%;flex:none;vertical-align:-.12em;",
     "background:radial-gradient(circle at 35% 30%,#fff3b8 0 18%,var(--kg-gold) 19% 62%,var(--kg-gold-dark) 63%);",
     "box-shadow:inset 0 0 0 .08em var(--kg-gold-dark)}",
@@ -1483,8 +1625,8 @@
     "@media " + SIDEWAYS + "{.kg-root{flex-direction:row;flex-wrap:wrap}",
     ".kg-top{width:100%}.kg-view{height:calc(100% - 56px)}.kg-shop{width:min(46%,340px);height:calc(100% - 56px);border-top:0;",
     "border-left:3px solid var(--kg-wood-dark)}.kg-opt{min-height:38px}",
-    // folded sideways: a 54 px strip of tabs written top to bottom, under the fold button; a message floats over
-    // the bottom of the map, left of the strip
+    // folded sideways: a 54 px strip of tabs written top to bottom, under the fold button (English lies on its side
+    // there, reading down like a book's spine); a message floats over the bottom of the map, left of the strip
     ".kg-shop-min .kg-shop{width:54px;height:calc(100% - 56px)}",
     ".kg-shop-min .kg-tabs-box{flex:1}",
     ".kg-shop-min .kg-tabs{flex-direction:column;align-items:flex-end;flex:1;min-height:0;box-sizing:border-box;padding:46px 0 8px 6px;",
@@ -1497,7 +1639,7 @@
   ].join("");
 
   window.KanpekiGarden = { mount: mount, load: load, save: save, earn: earn, life: lifeOf, swayOf: swayOf,
-    butterflies: butterflies, blooms: blooms, items: ITEMS };
+    butterflies: butterflies, blooms: blooms, items: ITEMS, text: TEXT };
 
   // On a card: mount into #kg in AnkiDroid's study screen only (ankidroid-reviewer.js defines
   // ankidroid.userAction; the previewer and desktop Anki do not).

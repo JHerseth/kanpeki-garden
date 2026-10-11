@@ -44,7 +44,7 @@ test("owned removed items are refunded at full price and taken away, once", () =
   const win = page(stored);
   const s = win.KanpekiGarden.load();
   const R = win.KG_REMOVED;
-  assert.strictEqual(s.coins, 7 + 3 * R.tomato_ripe[1] + R.seed_tray[1] + R.carrot_bed[1]);
+  assert.strictEqual(s.coins, 7 + 3 * R.tomato_ripe[2] + R.seed_tray[2] + R.carrot_bed[2]);
   assert.strictEqual(s.earned, 40);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(s.inv)), { rose_pink: 3 });
   assert.deepStrictEqual(JSON.parse(JSON.stringify(s.placed.map((p) => p.k))), ["rose_pink"]);

@@ -2,7 +2,7 @@
 
 A small garden game that lives inside Anki cards. Each card the player answers in AnkiDroid's study screen pays one coin a day; coins buy flowers, vegetables, trees and decorations for a pixel-art garden. Plants grow on days with reviews, wilt after two days without, and die after four; a vacation switch freezes everything.
 
-The UI is in Japanese (kana), written for young learners.
+The UI is in Japanese (kana), written for young learners, or in English with `data-lang="en"` on the card's slot.
 
 ## Setup
 
@@ -37,9 +37,9 @@ The slot is the `<div id="kg">` in the snippet (the script mounts the first one 
 | `data-kg="toast"` | Only a short "+1" on the card when it pays a coin; no chip, no garden |
 | `data-card="{{CardID}}"` | The card, so it pays one coin a day: the day starts at 04:00, as in Anki, and showing the answer again or undoing pays nothing. Without a card id the chip still shows but nothing pays |
 | `data-dev="1"` | Test controls in the garden's settings (「+100」 coins, and 「−1日」「+1日」 to move the garden's day). Only in a test profile's templates, never in the ones the player studies with |
-| `data-lang` | The UI language; coming with the English UI |
+| `data-lang="en"` | The garden in English, item names too. Without it, or with any other value, it's in Japanese; the save is the same in both |
 
-The garden draws its text in the Klee One font when the media folder has it as `_kleeone-regular.ttf` (it isn't in the zip); otherwise in the phone's own font.
+The garden draws its Japanese text in the Klee One font when the media folder has it as `_kleeone-regular.ttf` (it isn't in the zip); otherwise, and for English, in the phone's own font.
 
 ### Where it shows
 

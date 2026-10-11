@@ -32,5 +32,7 @@ Good to know
   grow, wilt or die, and cards pay no coins until it's turned off.
 - To update, replace the media files with the new zip's; the garden's save is kept.
 - The version is shown at the bottom of the garden's settings.
+- For the garden in English, add data-lang="en" to the <div id="kg" ...> in the snippet you pasted:
+  <div id="kg" data-kg="garden" data-lang="en" data-card="{{CardID}}"></div>
 
 Licence: MIT, see LICENSE. ART.md says how the art was made.

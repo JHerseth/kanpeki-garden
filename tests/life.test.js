@@ -235,7 +235,7 @@ test("a v: 1 save with removed items is refunded and migrated", () => {
   const win = page(stored, { now: at(MON) });
   const s = win.KanpekiGarden.load();
   assert.strictEqual(s.v, 2);
-  assert.strictEqual(s.coins, win.KG_REMOVED.tomato_ripe[1] + win.KG_REMOVED.seed_tray[1]);
+  assert.strictEqual(s.coins, win.KG_REMOVED.tomato_ripe[2] + win.KG_REMOVED.seed_tray[2]);
   assert.deepStrictEqual(plain(s.placed), [{ id: 2, k: "rose_pink", x: 500, y: 600, t: iso(MON), g: MATURE }]);
   assert.ok(s.refunded, "no note to show");
 });

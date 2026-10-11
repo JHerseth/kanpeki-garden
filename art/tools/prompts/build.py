@@ -64,9 +64,9 @@ OUT = os.path.join(HERE, "..", "out", "prompts")           # publish this folder
 
 src = open(os.path.join(REPO, "catalog.js"), encoding="utf-8").read()
 E = {e[0]: e for e in var(src, "KG_CATALOG")}
-REMOVED = var(src, "KG_REMOVED")                  # key -> [name, price]: the SKIPPED ones, out of the shop
+REMOVED = var(src, "KG_REMOVED")                  # key -> [name, English name, price]: the SKIPPED ones, out of the shop
 plant_tabs = {"花", "やさい", "草木", "木", "はちうえ"}
-all_plants = {k for k, e in E.items() if e[2] in plant_tabs}
+all_plants = {k for k, e in E.items() if e[3] in plant_tabs}
 listed = ({p[0] for p in PLANTS} | set(COVERED)) - (set(NEW_ITEMS) - set(E))   # less new plants not in the shop yet
 assert all_plants == listed, (all_plants - listed, listed - all_plants)
 assert {s[0] for s in SKIPPED} == set(REMOVED), set(REMOVED) ^ {s[0] for s in SKIPPED}
@@ -227,7 +227,7 @@ for key, name, group, kind, H, m, ov in PLANTS:
         ref = sheet.crop((292, 14, 506, 286))
     else:
         # its picture in the game: the mature frame once its strip is in, else the sheet sprite
-        jp, price = E[key][1], E[key][3]
+        jp, price = E[key][1], E[key][4]
         ref, _ = mature(key, 1)
         ref = ref.resize((ref.width * 3, ref.height * 3), Image.NEAREST)
     ref.save(os.path.join(OUT, "refs", key + ".png"))

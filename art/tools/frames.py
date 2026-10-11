@@ -32,7 +32,7 @@ _atlas = {}
 def frames(key, scale=SCALE):
     """An item's frames as [(RGBA image, (anchor x, anchor y))], scaled to garden pixels."""
     out = []
-    for a, x, y, w, h, ax, ay in CAT[key][5]:
+    for a, x, y, w, h, ax, ay in CAT[key][6]:
         if a not in _atlas:
             _atlas[a] = Image.open(os.path.join(MEDIA, ATLAS[a][0])).convert("RGBA")
         im = _atlas[a].crop((x, y, x + w, y + h))
@@ -85,5 +85,5 @@ def sheet(keys, path, zoom=1.5, gap=12):
 if __name__ == "__main__":
     out = os.path.join(os.path.dirname(os.path.abspath(__file__)), "out", "frames")
     os.makedirs(out, exist_ok=True)
-    sheet([k for k, e in CAT.items() if len(e[5]) > 1], os.path.join(out, "sheet{}.png"))
+    sheet([k for k, e in CAT.items() if len(e[6]) > 1], os.path.join(out, "sheet{}.png"))
     print("wrote", out)

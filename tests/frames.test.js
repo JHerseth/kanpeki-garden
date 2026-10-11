@@ -9,9 +9,10 @@ const { KEY, OLD_KEY, page, openGarden, unsoldEdit } = require("./harness");
 
 const PLANT_TABS = ["花", "はちうえ", "やさい", "草木", "木"];
 // Every plant has its strip now. The 7 new plants have no sheet sprite: stage art only.
-const NEW = { forget_me_not: ["ワスレナグサ", "花", 20], marigold: ["マリーゴールド", "花", 20], primrose: ["サクラソウ", "花", 20],
-  cotton: ["ワタ", "花", 50], chili: ["トウガラシ", "やさい", 100], zucchini: ["ズッキーニ", "やさい", 100],
-  grape_vine: ["ブドウ", "やさい", 100], apple: ["りんごの木", "木", 200] };
+const NEW = { forget_me_not: ["ワスレナグサ", "Forget-me-not", "花", 20], marigold: ["マリーゴールド", "Marigold", "花", 20],
+  primrose: ["サクラソウ", "Primrose", "花", 20], cotton: ["ワタ", "Cotton", "花", 50], chili: ["トウガラシ", "Chili pepper", "やさい", 100],
+  zucchini: ["ズッキーニ", "Zucchini", "やさい", 100], grape_vine: ["ブドウ", "Grapes", "やさい", 100],
+  apple: ["りんごの木", "Apple tree", "木", 200] };
 
 function save(over) {
   return { [OLD_KEY]: JSON.stringify(Object.assign({ v: 1, coins: 0, earned: 0, seen: {}, inv: {}, placed: [], next: 1 }, over)) };
@@ -29,7 +30,7 @@ function shown(win, d, s) {
 
 test("every frame lies on its atlas; every plant has frames and is sold, the new ones too", () => {
   const win = page({});
-  for (const [key, , tab, , sold, frames] of win.KG_CATALOG) {
+  for (const [key, , , tab, , sold, frames] of win.KG_CATALOG) {
     assert.ok(frames.length === 1 || frames.length >= 3, key);
     for (const [a, x, y, w, h] of frames) {
       const at = win.KG_ATLAS[a];
@@ -39,12 +40,12 @@ test("every frame lies on its atlas; every plant has frames and is sold, the new
     assert.strictEqual(sold, !plant || frames.length > 1, key);
     if (!plant) assert.strictEqual(frames.length, 1, key);
   }
-  const unsold = win.KG_CATALOG.filter((e) => !e[4]).map((e) => e[0]);
+  const unsold = win.KG_CATALOG.filter((e) => !e[5]).map((e) => e[0]);
   assert.deepStrictEqual(plain(unsold), []);
   for (const [key, want] of Object.entries(NEW)) {
     const e = win.KG_CATALOG.find((x) => x[0] === key);
-    assert.deepStrictEqual(plain(e.slice(1, 5)), want.concat([true]), key);
-    assert.strictEqual(e[5].length, 5, key);
+    assert.deepStrictEqual(plain(e.slice(1, 6)), want.concat([true]), key);
+    assert.strictEqual(e[6].length, 5, key);
   }
   assert.strictEqual(win.KG_CATALOG.find((e) => e[0] === "corn")[1], "トウモロコシ");
 });
@@ -57,10 +58,10 @@ test("the shop lists only sold items, each showing its mature frame", () => {
     const t = tab.textContent;
     if (/もちもの/.test(t)) continue;
     const names = byClass(root, "kg-name").map((n) => n.textContent);
-    const want = win.KG_CATALOG.filter((e) => e[2] === t && e[4]);
+    const want = win.KG_CATALOG.filter((e) => e[3] === t && e[5]);
     assert.deepStrictEqual(names, plain(want.map((e) => e[1])), t);
     byClass(root, "kg-card").forEach((card, i) => {
-      const frames = want[i][5], f = frames[frames.length > 1 ? frames.length - 3 : 0];
+      const frames = want[i][6], f = frames[frames.length > 1 ? frames.length - 3 : 0];
       const d = byClass(card, "kg-sprite")[0];
       const s = Math.min(1, 56 / Math.max(f[3], f[4]));
       assert.deepStrictEqual(shown(win, d, s), { a: f[0], x: f[1], y: f[2], w: f[3], h: f[4] }, want[i][0]);

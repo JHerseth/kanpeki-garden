@@ -145,8 +145,8 @@ function viewSize(screen, view) {
 function unsoldEdit(key) {
   return (win) => {
     const e = win.KG_CATALOG.find((x) => x[0] === key);
-    e[4] = false;
-    e[5] = [e[5][e[5].length - 3]];
+    e[5] = false;
+    e[6] = [e[6][e[6].length - 3]];
   };
 }
 

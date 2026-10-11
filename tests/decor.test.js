@@ -19,9 +19,9 @@ test("the bench is a sold かざり item at 100, one frame about 180 x 105 garde
   const win = page({});
   const e = win.KG_CATALOG.find((x) => x[0] === "bench");
   assert.ok(e, "no bench in KG_CATALOG");
-  assert.deepStrictEqual(plain(e.slice(1, 5)), ["ベンチ", "かざり", 100, true]);
-  assert.strictEqual(e[5].length, 1);
-  const [, , , w, h, ax, ay] = e[5][0], S = win.KG_SCALE;
+  assert.deepStrictEqual(plain(e.slice(1, 6)), ["ベンチ", "Bench", "かざり", 100, true]);
+  assert.strictEqual(e[6].length, 1);
+  const [, , , w, h, ax, ay] = e[6][0], S = win.KG_SCALE;
   assert.ok(Math.abs(w * S - 180) <= 4, "width " + w * S);
   assert.ok(Math.abs(h * S - 105) <= 8, "height " + h * S);
   assert.ok(Math.abs(ax - w / 2) <= 2 && ay <= h && ay > h - 4, "anchor " + [ax, ay]);
@@ -40,7 +40,7 @@ test("the bench: buy, place, drag, しまう, place again; drawn in front of wha
   const win = page(stored);
   const root = openGarden(win);
   const view = byClass(root, "kg-view")[0];
-  const S = win.KG_SCALE, [, , , w, h, ax, ay] = win.KG_CATALOG.find((e) => e[0] === "bench")[5][0];
+  const S = win.KG_SCALE, [, , , w, h, ax, ay] = win.KG_CATALOG.find((e) => e[0] === "bench")[6][0];
   // the fake view is 400 x 300: the 2000 x 1116 map fits at 0.2, centred 38.4 px down
   const toClient = (x, y) => ({ clientX: x * 0.2, clientY: y * 0.2 + 38.4 });
   const ev = (type, c, target) => view.on[type].forEach((f) => f(Object.assign({ type, pointerId: 1, target }, c)));

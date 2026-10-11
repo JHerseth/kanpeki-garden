@@ -10,7 +10,7 @@
  -> media/_garden_sprites<n>.webp   every frame packed in atlases of at most ATLAS_MAX px a side
     media/_garden_bg.webp
     catalog.js                   KG_CATALOG: per item its shop data and frames (format in the file),
-                                        KG_REMOVED: {key: [name, price]} for items taken out of the shop
+                                        KG_REMOVED: {key: [name, English name, price]} for items taken out of the shop
     art/removed/<key>.png        the crops of those items, kept as a backup (rewritten only if their pixels change)
     media/_garden.js             catalog.js + KG_VERSION + garden.js, the file the card templates load
 
@@ -98,141 +98,141 @@ ATLAS_MAX = 2048                 # px a side, well inside what phone WebViews ta
 # 50 big flowers, pots, hanging plants · 100 vegetables, bushes, hedges, bamboo, ferns · 200 trees.
 # Decorations and tools are priced by size on the same scale.
 CATALOG = [
-    # key, name, shop tab, price, centre of the sprite on the sheet
-    ("rose_pink", "ピンクのバラ", "花", 20, [(57, 53)]),
-    ("rose_red", "赤いバラ", "花", 20, [(163, 51)]),
-    ("tulip_yellow", "黄色いチューリップ", "花", 20, [(266, 53)]),
-    ("dandelion", "タンポポ", "花", 20, [(368, 49)]),
-    ("bluebell", "ブルーベル", "花", 20, [(475, 51)]),
-    ("lavender", "ラベンダー", "花", 20, [(682, 49)]),
-    ("daisy", "デイジー", "花", 20, [(784, 51)]),
-    ("marguerite", "マーガレット", "花", 20, [(884, 51)]),
-    ("tulip_orange", "オレンジのチューリップ", "花", 20, [(988, 54)]),
-    ("pansy", "パンジー", "花", 20, [(1090, 53)]),
-    ("clover", "クローバー", "花", 20, [(1195, 49)]),
-    ("violet", "スミレ", "花", 20, [(1299, 52)]),
-    ("mushroom_orange", "キノコ", "花", 20, [(1405, 51)]),
-    ("wildflower", "のはらの花", "花", 20, [(1509, 49)]),
-    ("phlox", "フロックス", "花", 50, [(59, 143)]),
-    ("nemophila", "ネモフィラ", "花", 20, [(164, 144)]),
-    ("buttercup", "キンポウゲ", "花", 20, [(269, 143)]),
-    ("clover4", "よつばのクローバー", "花", 20, [(367, 145)]),
-    ("viola", "ビオラ", "花", 50, [(475, 143)]),
-    ("pansy_purple", "むらさきのパンジー", "花", 20, [(582, 144)]),
-    ("poppy", "ポピー", "花", 20, [(682, 146)]),
-    ("lily", "ユリ", "花", 50, [(785, 144)]),
-    ("heather", "ヒース", "花", 50, [(884, 142)]),
-    ("fiddlehead", "ゼンマイ", "花", 20, [(989, 146)]),
-    ("ivy_sprig", "ツタ", "花", 20, [(1091, 142)]),
-    ("moss", "コケ", "花", 20, [(1197, 143)]),
-    ("shiitake", "シイタケ", "花", 20, [(1305, 146)]),
-    ("amanita", "ベニテングタケ", "花", 20, [(1407, 143)]),
-    ("onion", "タマネギ", "やさい", 100, [(1510, 142)]),
-    ("grass_tuft", "くさ", "花", 20, [(1614, 145)]),
-    ("marigold", "マリーゴールド", "花", 20, []),   # stage art only
-    ("primrose", "サクラソウ", "花", 20, []),       # stage art only
-    ("forget_me_not", "ワスレナグサ", "花", 20, []),  # stage art only
-    ("hydrangea", "アジサイ", "花", 50, [(60, 234)]),
-    ("sunflower", "ヒマワリ", "花", 50, [(165, 234)]),
-    ("lupine", "ルピナス", "花", 50, [(269, 235)]),
-    ("hibiscus", "ハイビスカス", "花", 50, [(372, 235)]),
-    ("cotton", "ワタ", "花", 50, []),               # stage art only
-    ("ivy_hanging", "たれさがるツタ", "はちうえ", 50, [(477, 233)]),
-    ("basket", "花のつりかご", "はちうえ", 50, [(681, 235)]),
-    ("sprout_pot", "めが出たはち", "はちうえ", 50, [(783, 242)]),
-    ("sprout_pot2", "ふたばのはち", "はちうえ", 50, [(884, 241)]),
-    ("flowerbox", "花のプランター", "はちうえ", 50, [(991, 236)]),
-    ("cactus", "サボテン", "はちうえ", 50, [(1094, 236)]),
-    ("aloe", "アロエ", "はちうえ", 50, [(1197, 239)]),
-    ("succulent", "たにくしょくぶつ", "はちうえ", 50, [(1302, 243)]),
-    ("jade", "カネノナルキ", "はちうえ", 50, [(1406, 237)]),
-    ("snake_plant", "サンスベリア", "はちうえ", 50, [(1509, 238)]),
-    ("leafy_bush", "はっぱのしげみ", "草木", 100, [(1615, 236)]),
-    ("pot_leafy", "はちうえの木", "はちうえ", 50, [(57, 327)]),
-    ("pot_yellow", "黄色い花のはち", "はちうえ", 50, [(162, 329)]),
-    ("hang_ivy", "ツタのつりばち", "はちうえ", 50, [(267, 328)]),
-    ("pot_fern", "シダのはち", "はちうえ", 50, [(372, 327)]),
-    ("hang_fern", "シダのつりばち", "はちうえ", 50, [(475, 325)]),
-    ("pot_palm", "ヤシのはち", "はちうえ", 50, [(580, 327)]),
-    ("hang_spider", "オリヅルラン", "はちうえ", 50, [(680, 327)]),
-    ("pot_spiky", "とげとげのはち", "はちうえ", 50, [(781, 328)]),
-    ("flytrap", "ハエトリソウ", "はちうえ", 50, [(885, 329)]),
-    ("planter_white", "白いプランター", "はちうえ", 50, [(990, 325)]),
-    ("flower_bowl", "花のボウル", "はちうえ", 50, [(1094, 328)]),
-    ("seedling_box", "なえばこ", "はちうえ", 50, [(1199, 329)]),
-    ("seed_tray", "なえのトレー", "はちうえ", 50, [(1305, 329)]),
-    ("terrarium", "テラリウム", "はちうえ", 50, [(1407, 328)]),
-    ("soil_bag", "土のふくろ", "かざり", 20, [(1509, 330)]),
-    ("watering_can", "じょうろ", "かざり", 20, [(1615, 334)]),
-    ("berry_red", "赤いみの木", "やさい", 100, [(59, 424)]),
-    ("tomato", "トマト", "やさい", 100, [(160, 423)]),
-    ("cabbage", "キャベツ", "やさい", 100, [(265, 423)]),
-    ("pumpkin", "カボチャ", "やさい", 100, [(369, 423)]),
-    ("carrot", "ニンジン", "やさい", 100, [(475, 423)]),
-    ("strawberry", "イチゴ", "やさい", 100, [(581, 424)]),
-    ("corn", "トウモロコシ", "やさい", 100, [(683, 422)]),
-    ("eggplant", "ナス", "やさい", 100, [(785, 423)]),
-    ("radish", "ラディッシュ", "やさい", 100, [(886, 423)]),
-    ("lettuce", "レタス", "やさい", 100, [(988, 422)]),
-    ("grass_tall", "くさむら", "草木", 100, [(1198, 424)]),
-    ("monstera", "モンステラ", "草木", 100, [(1303, 424)]),
-    ("monstera_small", "小さなモンステラ", "草木", 100, [(1404, 425)]),
-    ("fern", "シダ", "草木", 100, [(1510, 423)]),
-    ("banana_leaf", "バショウ", "草木", 100, [(1615, 423)]),
-    ("blueberry", "ブルーベリー", "やさい", 100, [(57, 520)]),
-    ("tomato_ripe", "まっかなトマト", "やさい", 100, [(160, 517)]),
-    ("napa", "はくさい", "やさい", 100, [(265, 518)]),
-    ("carrot_bed", "ニンジンばたけ", "やさい", 100, [(369, 522)]),
-    ("radish_bed", "ラディッシュばたけ", "やさい", 100, [(475, 522)]),
-    ("potato_bed", "ジャガイモばたけ", "やさい", 100, [(581, 517)]),
-    ("potato_plant", "ジャガイモのめ", "やさい", 100, [(682, 518)]),
-    ("wheat", "こむぎ", "やさい", 100, [(783, 515)]),
-    ("shrub", "しげみ", "草木", 100, [(884, 521)]),
-    ("potatoes", "ジャガイモ", "やさい", 100, [(989, 518)]),
-    ("chili", "トウガラシ", "やさい", 100, []),     # stage art only
-    ("zucchini", "ズッキーニ", "やさい", 100, []),  # stage art only
-    ("grape_vine", "ブドウ", "やさい", 100, []),    # stage art only
-    ("bamboo", "たけ", "草木", 100, [(1064, 422), (1092, 422), (1121, 422), (1064, 517), (1091, 517), (1120, 517)]),
-    ("grass_tall2", "ながいくさ", "草木", 100, [(1198, 521)]),
-    ("topiary", "うずまきの木", "草木", 100, [(1304, 518)]),
-    ("cone_bush", "さんかくの木", "草木", 100, [(1403, 517)]),
-    ("rose_bush", "バラのしげみ", "草木", 100, [(1508, 520)]),
-    ("branches", "かれえだ", "かざり", 20, [(1616, 522)]),
-    ("orange_tree", "オレンジの木", "木", 200, [(84, 691)]),
-    ("sakura", "さくら", "木", 200, [(238, 689)]),
-    ("maple", "もみじ", "木", 200, [(401, 687)]),
-    ("pear_tree", "ナシの木", "木", 200, [(580, 686)]),
-    ("apple", "りんごの木", "木", 200, []),       # stage art only
-    ("fir", "モミの木", "木", 200, [(751, 680)]),
-    ("willow", "ヤナギ", "木", 200, [(915, 672)]),
-    ("palm", "ヤシの木", "木", 200, [(1067, 663)]),
-    ("birch", "シラカバ", "木", 200, [(1201, 659)]),
-    ("bonsai", "ぼんさい", "木", 200, [(1344, 665)]),
-    ("bamboo_log", "たけとまるた", "草木", 100, [(1493, 658)]),
-    ("stump", "きりかぶ", "かざり", 50, [(1616, 699)]),
-    ("stone_basin", "いしのみずばち", "かざり", 100, [(1092, 796)]),
-    ("stepping_stones", "とびいし", "かざり", 50, [(1200, 795)]),
-    ("lantern", "ランタン", "かざり", 50, [(1300, 787)]),
-    ("birdhouse", "とりのいえ", "かざり", 100, [(1403, 787)]),
-    ("trellis", "トレリス", "かざり", 50, [(1506, 792)]),
-    ("trellis_vine", "ツタのトレリス", "かざり", 100, [(1617, 792)]),
-    ("wheelbarrow", "手おしぐるま", "かざり", 50, [(66, 871)]),
-    ("watering_can2", "ブリキのじょうろ", "かざり", 20, [(163, 881)]),
-    ("shovel", "スコップ", "かざり", 20, [(265, 874)]),
-    ("trowel", "シャベル", "かざり", 20, [(364, 874)]),
-    ("fence", "さく", "かざり", 20, [(464, 877)]),
-    ("gate", "もん", "かざり", 50, [(575, 873)]),
-    ("birdbath", "とりのみずあび", "かざり", 100, [(685, 868)]),
-    ("gnome", "こびと", "かざり", 100, [(777, 870)]),
-    ("bench", "ベンチ", "かざり", 100, []),         # own picture: art/decor/
-    ("compost", "たいひばこ", "かざり", 50, [(884, 874)]),
-    ("well", "いど", "かざり", 200, [(986, 851)]),
-    ("hose", "ホース", "かざり", 20, [(1090, 883)]),
-    ("firewood", "まき", "かざり", 20, [(1197, 883)]),
-    ("well_small", "小さないど", "かざり", 100, [(1304, 875)]),
-    ("shears", "せんていばさみ", "かざり", 20, [(1403, 877)]),
-    ("seeds", "たねのふくろ", "かざり", 20, [(1503, 887)]),
-    ("pond", "小さな池", "かざり", 100, [(1614, 888)]),
+    # key, name, English name, shop tab, price, centre of the sprite on the sheet
+    ("rose_pink", "ピンクのバラ", "Pink rose", "花", 20, [(57, 53)]),
+    ("rose_red", "赤いバラ", "Red rose", "花", 20, [(163, 51)]),
+    ("tulip_yellow", "黄色いチューリップ", "Yellow tulip", "花", 20, [(266, 53)]),
+    ("dandelion", "タンポポ", "Dandelion", "花", 20, [(368, 49)]),
+    ("bluebell", "ブルーベル", "Bluebell", "花", 20, [(475, 51)]),
+    ("lavender", "ラベンダー", "Lavender", "花", 20, [(682, 49)]),
+    ("daisy", "デイジー", "Daisy", "花", 20, [(784, 51)]),
+    ("marguerite", "マーガレット", "Marguerite", "花", 20, [(884, 51)]),
+    ("tulip_orange", "オレンジのチューリップ", "Orange tulip", "花", 20, [(988, 54)]),
+    ("pansy", "パンジー", "Pansy", "花", 20, [(1090, 53)]),
+    ("clover", "クローバー", "Clover", "花", 20, [(1195, 49)]),
+    ("violet", "スミレ", "Violet", "花", 20, [(1299, 52)]),
+    ("mushroom_orange", "キノコ", "Mushroom", "花", 20, [(1405, 51)]),
+    ("wildflower", "のはらの花", "Wildflower", "花", 20, [(1509, 49)]),
+    ("phlox", "フロックス", "Phlox", "花", 50, [(59, 143)]),
+    ("nemophila", "ネモフィラ", "Baby blue eyes", "花", 20, [(164, 144)]),
+    ("buttercup", "キンポウゲ", "Buttercup", "花", 20, [(269, 143)]),
+    ("clover4", "よつばのクローバー", "Four-leaf clover", "花", 20, [(367, 145)]),
+    ("viola", "ビオラ", "Viola", "花", 50, [(475, 143)]),
+    ("pansy_purple", "むらさきのパンジー", "Purple pansy", "花", 20, [(582, 144)]),
+    ("poppy", "ポピー", "Poppy", "花", 20, [(682, 146)]),
+    ("lily", "ユリ", "Lily", "花", 50, [(785, 144)]),
+    ("heather", "ヒース", "Heather", "花", 50, [(884, 142)]),
+    ("fiddlehead", "ゼンマイ", "Fiddlehead", "花", 20, [(989, 146)]),
+    ("ivy_sprig", "ツタ", "Ivy", "花", 20, [(1091, 142)]),
+    ("moss", "コケ", "Moss", "花", 20, [(1197, 143)]),
+    ("shiitake", "シイタケ", "Shiitake", "花", 20, [(1305, 146)]),
+    ("amanita", "ベニテングタケ", "Toadstool", "花", 20, [(1407, 143)]),
+    ("onion", "タマネギ", "Onion", "やさい", 100, [(1510, 142)]),
+    ("grass_tuft", "くさ", "Grass", "花", 20, [(1614, 145)]),
+    ("marigold", "マリーゴールド", "Marigold", "花", 20, []),   # stage art only
+    ("primrose", "サクラソウ", "Primrose", "花", 20, []),       # stage art only
+    ("forget_me_not", "ワスレナグサ", "Forget-me-not", "花", 20, []),  # stage art only
+    ("hydrangea", "アジサイ", "Hydrangea", "花", 50, [(60, 234)]),
+    ("sunflower", "ヒマワリ", "Sunflower", "花", 50, [(165, 234)]),
+    ("lupine", "ルピナス", "Lupine", "花", 50, [(269, 235)]),
+    ("hibiscus", "ハイビスカス", "Hibiscus", "花", 50, [(372, 235)]),
+    ("cotton", "ワタ", "Cotton", "花", 50, []),               # stage art only
+    ("ivy_hanging", "たれさがるツタ", "Trailing ivy", "はちうえ", 50, [(477, 233)]),
+    ("basket", "花のつりかご", "Flower basket", "はちうえ", 50, [(681, 235)]),
+    ("sprout_pot", "めが出たはち", "Sprouting pot", "はちうえ", 50, [(783, 242)]),
+    ("sprout_pot2", "ふたばのはち", "Seedling pot", "はちうえ", 50, [(884, 241)]),
+    ("flowerbox", "花のプランター", "Flower box", "はちうえ", 50, [(991, 236)]),
+    ("cactus", "サボテン", "Cactus", "はちうえ", 50, [(1094, 236)]),
+    ("aloe", "アロエ", "Aloe", "はちうえ", 50, [(1197, 239)]),
+    ("succulent", "たにくしょくぶつ", "Succulent", "はちうえ", 50, [(1302, 243)]),
+    ("jade", "カネノナルキ", "Jade plant", "はちうえ", 50, [(1406, 237)]),
+    ("snake_plant", "サンスベリア", "Snake plant", "はちうえ", 50, [(1509, 238)]),
+    ("leafy_bush", "はっぱのしげみ", "Leafy bush", "草木", 100, [(1615, 236)]),
+    ("pot_leafy", "はちうえの木", "Potted tree", "はちうえ", 50, [(57, 327)]),
+    ("pot_yellow", "黄色い花のはち", "Yellow flower pot", "はちうえ", 50, [(162, 329)]),
+    ("hang_ivy", "ツタのつりばち", "Hanging ivy", "はちうえ", 50, [(267, 328)]),
+    ("pot_fern", "シダのはち", "Potted fern", "はちうえ", 50, [(372, 327)]),
+    ("hang_fern", "シダのつりばち", "Hanging fern", "はちうえ", 50, [(475, 325)]),
+    ("pot_palm", "ヤシのはち", "Potted palm", "はちうえ", 50, [(580, 327)]),
+    ("hang_spider", "オリヅルラン", "Spider plant", "はちうえ", 50, [(680, 327)]),
+    ("pot_spiky", "とげとげのはち", "Spiky plant", "はちうえ", 50, [(781, 328)]),
+    ("flytrap", "ハエトリソウ", "Flytrap", "はちうえ", 50, [(885, 329)]),
+    ("planter_white", "白いプランター", "White planter", "はちうえ", 50, [(990, 325)]),
+    ("flower_bowl", "花のボウル", "Flower bowl", "はちうえ", 50, [(1094, 328)]),
+    ("seedling_box", "なえばこ", "Seedling box", "はちうえ", 50, [(1199, 329)]),
+    ("seed_tray", "なえのトレー", "Seedling tray", "はちうえ", 50, [(1305, 329)]),
+    ("terrarium", "テラリウム", "Terrarium", "はちうえ", 50, [(1407, 328)]),
+    ("soil_bag", "土のふくろ", "Bag of soil", "かざり", 20, [(1509, 330)]),
+    ("watering_can", "じょうろ", "Watering can", "かざり", 20, [(1615, 334)]),
+    ("berry_red", "赤いみの木", "Red berry bush", "やさい", 100, [(59, 424)]),
+    ("tomato", "トマト", "Tomato", "やさい", 100, [(160, 423)]),
+    ("cabbage", "キャベツ", "Cabbage", "やさい", 100, [(265, 423)]),
+    ("pumpkin", "カボチャ", "Pumpkin", "やさい", 100, [(369, 423)]),
+    ("carrot", "ニンジン", "Carrot", "やさい", 100, [(475, 423)]),
+    ("strawberry", "イチゴ", "Strawberry", "やさい", 100, [(581, 424)]),
+    ("corn", "トウモロコシ", "Corn", "やさい", 100, [(683, 422)]),
+    ("eggplant", "ナス", "Eggplant", "やさい", 100, [(785, 423)]),
+    ("radish", "ラディッシュ", "Radish", "やさい", 100, [(886, 423)]),
+    ("lettuce", "レタス", "Lettuce", "やさい", 100, [(988, 422)]),
+    ("grass_tall", "くさむら", "Tall grass", "草木", 100, [(1198, 424)]),
+    ("monstera", "モンステラ", "Monstera", "草木", 100, [(1303, 424)]),
+    ("monstera_small", "小さなモンステラ", "Small monstera", "草木", 100, [(1404, 425)]),
+    ("fern", "シダ", "Fern", "草木", 100, [(1510, 423)]),
+    ("banana_leaf", "バショウ", "Banana plant", "草木", 100, [(1615, 423)]),
+    ("blueberry", "ブルーベリー", "Blueberry", "やさい", 100, [(57, 520)]),
+    ("tomato_ripe", "まっかなトマト", "Ripe tomato", "やさい", 100, [(160, 517)]),
+    ("napa", "はくさい", "Napa cabbage", "やさい", 100, [(265, 518)]),
+    ("carrot_bed", "ニンジンばたけ", "Carrot patch", "やさい", 100, [(369, 522)]),
+    ("radish_bed", "ラディッシュばたけ", "Radish patch", "やさい", 100, [(475, 522)]),
+    ("potato_bed", "ジャガイモばたけ", "Potato patch", "やさい", 100, [(581, 517)]),
+    ("potato_plant", "ジャガイモのめ", "Potato sprout", "やさい", 100, [(682, 518)]),
+    ("wheat", "こむぎ", "Wheat", "やさい", 100, [(783, 515)]),
+    ("shrub", "しげみ", "Shrub", "草木", 100, [(884, 521)]),
+    ("potatoes", "ジャガイモ", "Potatoes", "やさい", 100, [(989, 518)]),
+    ("chili", "トウガラシ", "Chili pepper", "やさい", 100, []),     # stage art only
+    ("zucchini", "ズッキーニ", "Zucchini", "やさい", 100, []),  # stage art only
+    ("grape_vine", "ブドウ", "Grapes", "やさい", 100, []),    # stage art only
+    ("bamboo", "たけ", "Bamboo", "草木", 100, [(1064, 422), (1092, 422), (1121, 422), (1064, 517), (1091, 517), (1120, 517)]),
+    ("grass_tall2", "ながいくさ", "Long grass", "草木", 100, [(1198, 521)]),
+    ("topiary", "うずまきの木", "Swirly tree", "草木", 100, [(1304, 518)]),
+    ("cone_bush", "さんかくの木", "Triangle tree", "草木", 100, [(1403, 517)]),
+    ("rose_bush", "バラのしげみ", "Rose bush", "草木", 100, [(1508, 520)]),
+    ("branches", "かれえだ", "Dry branches", "かざり", 20, [(1616, 522)]),
+    ("orange_tree", "オレンジの木", "Orange tree", "木", 200, [(84, 691)]),
+    ("sakura", "さくら", "Cherry tree", "木", 200, [(238, 689)]),
+    ("maple", "もみじ", "Maple", "木", 200, [(401, 687)]),
+    ("pear_tree", "ナシの木", "Pear tree", "木", 200, [(580, 686)]),
+    ("apple", "りんごの木", "Apple tree", "木", 200, []),       # stage art only
+    ("fir", "モミの木", "Fir tree", "木", 200, [(751, 680)]),
+    ("willow", "ヤナギ", "Willow", "木", 200, [(915, 672)]),
+    ("palm", "ヤシの木", "Palm tree", "木", 200, [(1067, 663)]),
+    ("birch", "シラカバ", "Birch", "木", 200, [(1201, 659)]),
+    ("bonsai", "ぼんさい", "Bonsai", "木", 200, [(1344, 665)]),
+    ("bamboo_log", "たけとまるた", "Bamboo and log", "草木", 100, [(1493, 658)]),
+    ("stump", "きりかぶ", "Tree stump", "かざり", 50, [(1616, 699)]),
+    ("stone_basin", "いしのみずばち", "Stone basin", "かざり", 100, [(1092, 796)]),
+    ("stepping_stones", "とびいし", "Stepping stones", "かざり", 50, [(1200, 795)]),
+    ("lantern", "ランタン", "Lantern", "かざり", 50, [(1300, 787)]),
+    ("birdhouse", "とりのいえ", "Birdhouse", "かざり", 100, [(1403, 787)]),
+    ("trellis", "トレリス", "Trellis", "かざり", 50, [(1506, 792)]),
+    ("trellis_vine", "ツタのトレリス", "Ivy trellis", "かざり", 100, [(1617, 792)]),
+    ("wheelbarrow", "手おしぐるま", "Wheelbarrow", "かざり", 50, [(66, 871)]),
+    ("watering_can2", "ブリキのじょうろ", "Tin watering can", "かざり", 20, [(163, 881)]),
+    ("shovel", "スコップ", "Shovel", "かざり", 20, [(265, 874)]),
+    ("trowel", "シャベル", "Trowel", "かざり", 20, [(364, 874)]),
+    ("fence", "さく", "Fence", "かざり", 20, [(464, 877)]),
+    ("gate", "もん", "Gate", "かざり", 50, [(575, 873)]),
+    ("birdbath", "とりのみずあび", "Birdbath", "かざり", 100, [(685, 868)]),
+    ("gnome", "こびと", "Gnome", "かざり", 100, [(777, 870)]),
+    ("bench", "ベンチ", "Bench", "かざり", 100, []),         # own picture: art/decor/
+    ("compost", "たいひばこ", "Compost bin", "かざり", 50, [(884, 874)]),
+    ("well", "いど", "Well", "かざり", 200, [(986, 851)]),
+    ("hose", "ホース", "Hose", "かざり", 20, [(1090, 883)]),
+    ("firewood", "まき", "Firewood", "かざり", 20, [(1197, 883)]),
+    ("well_small", "小さないど", "Small well", "かざり", 100, [(1304, 875)]),
+    ("shears", "せんていばさみ", "Garden shears", "かざり", 20, [(1403, 877)]),
+    ("seeds", "たねのふくろ", "Seed packet", "かざり", 20, [(1503, 887)]),
+    ("pond", "小さな池", "Small pond", "かざり", 100, [(1614, 888)]),
 ]
 
 
@@ -308,7 +308,7 @@ def sheet_sprites():
     boxes = [b for b, _, _ in found]
     centre = [((x0 + x1) / 2, (y0 + y1) / 2) for x0, y0, x1, y1 in boxes]
     crops, used = {}, set()
-    for key, name, tab, price, points in CATALOG:
+    for key, name, en, tab, price, points in CATALOG:
         if not points:
             continue
         hit = set()
@@ -497,7 +497,8 @@ HEADER = """\
 // Generated by scripts/build_assets.py; rebuild it there.
 // KG_ATLAS: [file, width, height] per atlas in the media folder.
 // KG_SCALE: atlas pixels -> garden pixels.
-// KG_CATALOG: [key, name, shop tab, price, sold, frames] per item, in shop order.
+// KG_CATALOG: [key, name, English name, shop tab, price, sold, frames] per item, in shop order.
+//   name: the Japanese one, shown unless the slot has data-lang="en"; then the English name shows.
 //   sold: false for a plant whose stage art hasn't come yet; it stays here so one the player owns still shows.
 //   frames: [[atlas, x, y, w, h, ax, ay], ...]: the frame's box on KG_ATLAS[atlas], and its anchor (ax, ay),
 //     in the same pixels from the box's top-left: the point that goes on the item's place in the garden.
@@ -511,15 +512,15 @@ HEADER = """\
 
 def main():
     # the game has no HANGING: it keeps every はちうえ item still (no sway), hanging plants with them
-    assert all(tab == "はちうえ" for key, _, tab, *_ in CATALOG if key in HANGING), "a hanging plant outside はちうえ"
+    assert all(tab == "はちうえ" for key, _, _, tab, *_ in CATALOG if key in HANGING), "a hanging plant outside はちうえ"
     sheet = sheet_sprites()
     removed_dir = os.path.join(ART, "removed")
     os.makedirs(removed_dir, exist_ok=True)
     items, frames, refunds, unsold = [], [], {}, []
-    for key, name, tab, price, points in CATALOG:
+    for key, name, en, tab, price, points in CATALOG:
         if key in REMOVED:
             save_png(sheet[key], os.path.join(removed_dir, key + ".png"))
-            refunds[key] = [name, price]
+            refunds[key] = [name, en, price]
             continue
         strip, picture = (os.path.exists(os.path.join(d, key + ".png")) for d in (STAGES, DECOR))
         assert not (strip and picture), f"{key}: both a strip and a decoration picture"
@@ -535,7 +536,7 @@ def main():
             own = [(im, im.width / 2 if im.width % 2 else im.width // 2, im.height)]   # bottom centre; int when whole
             if tab in PLANT_TABS:
                 unsold.append(key)
-        items.append([key, name, tab, price, tab not in PLANT_TABS or len(own) > 1, len(frames), len(own)])
+        items.append([key, name, en, tab, price, tab not in PLANT_TABS or len(own) > 1, len(frames), len(own)])
         frames += own
     assert set(refunds) == REMOVED, f"not in CATALOG: {REMOVED - set(refunds)}"
     pos, sizes = pack([im.size for im, _, _ in frames], ATLAS_MAX)
@@ -553,13 +554,13 @@ def main():
         im.save(os.path.join(MEDIA, f), quality=90, method=6)
     Image.open(os.path.join(ART, "background.jpg")).convert("RGB").save(
         os.path.join(MEDIA, "_garden_bg.webp"), quality=85, method=6)
-    entries = [[key, name, tab, price, sold, boxes[i:i + n]] for key, name, tab, price, sold, i, n in items]
+    entries = [[key, name, en, tab, price, sold, boxes[i:i + n]] for key, name, en, tab, price, sold, i, n in items]
     with open(os.path.join(OUT, "catalog.js"), "w", encoding="utf-8") as f:
         f.write(HEADER)
         f.write("var KG_ATLAS = " + json.dumps([[name, im.width, im.height] for name, im in zip(files, atlases)]) + ";\n")
         f.write(f"var KG_SCALE = {SCALE};\n")
         f.write("var KG_CATALOG = [\n" + ",\n".join(json.dumps(e, ensure_ascii=False) for e in entries) + "\n];\n")
-        f.write("// No longer sold: key -> [name, price], refunded if the player still has one\n")
+        f.write("// No longer sold: key -> [name, English name, price], refunded if the player still has one\n")
         f.write(f"var KG_REMOVED = {json.dumps(dict(sorted(refunds.items())), ensure_ascii=False)};\n")
     staged = sum(n > 1 for *_, n in items)
     print(f"{len(entries)} items ({staged} from strips, {len(unsold)} plants not sold: {' '.join(unsold)}), "
