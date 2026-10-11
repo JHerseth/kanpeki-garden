@@ -14,9 +14,14 @@ coins buy plants and decorations for a pixel-art garden.
 2. Paste the contents of template-snippet.html at the end of the back template of each card type that
    should pay coins (Browse > Cards... > Back Template).
 
-3. On the phone, in AnkiDroid: Settings > Advanced > turn on "localStorage in Study Screen".
+3. On the phone, in AnkiDroid (2.23 or later): Settings > "New study screen" > turn on the "New study screen"
+   switch at the top of that page. It's off by default, and the garden shows only in the new study screen.
 
-4. Sync, then study on the phone: a coin chip shows in the bottom-right corner on the back of each card. Tap it to open the garden.
+4. Still in AnkiDroid: Settings > Advanced > turn on "localStorage in Study Screen" (under Workarounds).
+   The garden keeps its save there; without it nothing is saved.
+
+5. Sync, then study on the phone: a coin chip shows in the bottom-right corner on the back of each card.
+   Tap it to open the garden.
 
 Good to know
 - The garden shows only in AnkiDroid's new study screen (AnkiDroid 2.23 or later), not in desktop Anki,

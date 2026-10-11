@@ -21,8 +21,9 @@ Nothing to build: everything comes in a zip.
    <div id="kg" data-kg="garden" data-card="{{CardID}}"></div>
    <script src="_garden.js"></script>
    ```
-4. In AnkiDroid, turn on Settings → Advanced → "localStorage in Study Screen". The garden keeps its save in that storage, so it lives on that phone only and isn't synced. Without it the garden can't save anything.
-5. Sync, and open a card's back on the phone: a coin chip shows in the bottom-right corner of the screen. Tap it to open the garden.
+4. In AnkiDroid (2.23 or later), turn on the new study screen: Settings → "New study screen", then the "New study screen" switch at the top of that page. It's off by default, and the garden shows only there (see [Where it shows](#where-it-shows)).
+5. In AnkiDroid, turn on Settings → Advanced → "localStorage in Study Screen" (under Workarounds). The garden keeps its save in that storage, so it lives on that phone only and isn't synced. Without it the garden can't save anything.
+6. Sync, and open a card's back on the phone: a coin chip shows in the bottom-right corner of the screen. Tap it to open the garden.
 
 The zip's `INSTALL.txt` has the same steps.
 
@@ -42,7 +43,7 @@ The garden draws its text in the Klee One font when the media folder has it as `
 
 ### Where it shows
 
-Only in AnkiDroid's new study screen (AnkiDroid 2.23 or later). The script mounts only on the page that loads AnkiDroid's `ankidroid-reviewer.js`, which only the new study screen does; desktop Anki, AnkiDroid's previewer and the card browser show nothing and pay nothing. So looking at cards anywhere else never pays coins, and the save stays in one place, the phone the player studies on.
+Only in AnkiDroid's new study screen (AnkiDroid 2.23 or later, turned on in Settings → "New study screen"). The script mounts only on the page that loads AnkiDroid's `ankidroid-reviewer.js`, which only the new study screen does; desktop Anki, AnkiDroid's previewer and the card browser show nothing and pay nothing. So looking at cards anywhere else never pays coins, and the save stays in one place, the phone the player studies on.
 
 ### Saves
 
