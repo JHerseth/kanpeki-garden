@@ -93,6 +93,19 @@ test("they join on the test day, and wilt and die by the normal rules", () => {
   assert.ok(s2.placed.every((p) => H.life(s2, p).dead));
 });
 
+test("placed on a day with reviews, they stay mature after it", () => {
+  const stored = stored2({});
+  const win = page(stored, { now: NOW });
+  fill(openGarden(win, 1, { dev: "1" })).click();          // a card answered: today has reviews
+  assert.deepStrictEqual(saved(stored).days, { [TODAY]: 1 });
+  const w = page(stored, { now: NOW + 864e5 }), G = w.KanpekiGarden, s = saved(stored);
+  openGarden(w);
+  for (const p of s.placed) {
+    const mature = G.items[p.k].frames.length - 3;
+    assert.deepStrictEqual(JSON.parse(JSON.stringify(G.life(s, p))), { g: mature, missed: 0, dead: false }, p.k);
+  }
+});
+
 test("without the marker there is no +150", () => {
   for (const data of [undefined, { dev: "0" }]) {
     const root = openGarden(page(base(), { now: NOW }), undefined, data);

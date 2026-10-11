@@ -19,7 +19,7 @@
  * desktop Anki, the previewer and the card browser show nothing and pay nothing.
  *
  * Life cycle: a placed plant grows one stage for each finished day with reviews (the planting day
- * doesn't count), is dying after 2 finished days in a row without reviews and dead after 4. A review
+ * too), is dying after 2 finished days in a row without reviews and dead after 4. A review
  * brings a dying plant back at once; a dead one only goes to the compost (+25% of its price).
  * The garden runs only while a card is open, so it never ticks: the save keeps the days that had
  * reviews, and each plant's stage is worked out from them whenever the garden loads (lifeOf).
@@ -337,9 +337,10 @@
   /** Where placed plant p is in its life cycle now: {g: growth stage, missed: finished days in a row
    *  without reviews, dead}, or null outside the life cycle. Worked out from s.days and s.vac alone (hist:
    *  its history(), if at hand), so it comes out the same whenever it is asked. Its day t counts as a
-   *  review day but not as a growth day. Only finished days grow it or count as missed; a review today
-   *  brings a dying plant back now. Vacation days (VACATION, and every day since vac while it's on) are
-   *  frozen: they neither count as missed nor end a run of missed days. Once found dead (p.dead) it stays dead. */
+   *  review day whatever happens on it, and as a growth day if it had reviews, like any other day. Only
+   *  finished days grow it or count as missed; a review today brings a dying plant back now. Vacation days
+   *  (VACATION, and every day since vac while it's on) are frozen: they neither count as missed nor end a run
+   *  of missed days. Once found dead (p.dead) it stays dead. */
   function lifeOf(s, p, hist) {
     var item = ITEMS[p.k];
     if (!item || p.t == null || item.frames.length < 2) return null;
@@ -352,8 +353,10 @@
     var frozen = 0;                                  // VACATION days since last, before on
     // finished days without reviews from last up to day d, leaving out vacation days
     function missedTo(d) { return d - last - 1 - frozen - Math.max(0, d - Math.max(last + 1, on)); }
-    var i = 0, j = hist.length;                      // skip to the first day after t
-    while (i < j) { var m = (i + j) >> 1; if (hist[m][0] <= last) i = m + 1; else j = m; }
+    var i = 0, j = hist.length;                      // skip to day t
+    while (i < j) { var m = (i + j) >> 1; if (hist[m][0] < last) i = m + 1; else j = m; }
+    // t without reviews: past it, as it already counts as reviewed (so it's no vacation day to leave out either)
+    if (i < hist.length && hist[i][0] === last && !(hist[i][1] & REVIEWED)) i++;
     for (; i < hist.length && hist[i][0] < now; i++) {
       if (!(hist[i][1] & REVIEWED)) {
         if (hist[i][1] & VACATION && hist[i][0] < on) frozen++;

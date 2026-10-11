@@ -56,7 +56,7 @@ function touch(root, id, dx = 0, dy = 0) {
 const hint = (root) => byClass(root, "kg-hint")[0];
 const button = (root, text) => hint(root).all((n) => n.tagName === "button" && n.textContent === text)[0];
 
-test("planted Monday with reviews every day: sprout Tuesday, young from Wednesday 04:00, mature from Thursday 04:00", () => {
+test("planted Monday with reviews every day: sprout Monday, young from Tuesday 04:00, mature from Wednesday 04:00", () => {
   const stored = stored2({ inv: { rose_pink: 1 } });
   let g = look(stored, at(MON), 1);
   byClass(g.root, "kg-tab").find((n) => /もちもの/.test(n.textContent)).click();
@@ -65,12 +65,34 @@ test("planted Monday with reviews every day: sprout Tuesday, young from Wednesda
   const p = saved(stored).placed[0];
   assert.deepStrictEqual([p.k, p.t, p.g], ["rose_pink", iso(MON), undefined]);
   assert.strictEqual(frameOf(g, p.id), SPROUT);
-  assert.strictEqual(frameOf(look(stored, at(TUE), 1), 1), SPROUT);          // the planting day doesn't count
-  assert.strictEqual(frameOf(look(stored, at(WED, 3, 59)), 1), SPROUT);
-  assert.strictEqual(frameOf(look(stored, at(WED, 4), 1), 1), YOUNG);
+  assert.strictEqual(frameOf(look(stored, at(TUE, 3, 59)), 1), SPROUT);      // the planting day isn't over yet
+  assert.strictEqual(frameOf(look(stored, at(TUE, 4), 1), 1), YOUNG);        // the planting day counts
+  assert.strictEqual(frameOf(look(stored, at(WED, 3, 59)), 1), YOUNG);
+  assert.strictEqual(frameOf(look(stored, at(WED, 4), 1), 1), MATURE);
+  for (let d = THU; d <= 25; d++) assert.strictEqual(frameOf(look(stored, at(d), 1), 1), MATURE, iso(d));
+});
+
+test("planted on a day with reviews, none after: young from 04:00 the next day, then dying and dead on the usual days", () => {
+  const stored = stored2({ placed: [{ id: 1, k: "rose_pink", x: 500, y: 600, t: iso(MON) }], next: 2, days: days(MON) });
+  assert.strictEqual(frameOf(look(stored, at(MON, 23)), 1), SPROUT);
+  assert.strictEqual(frameOf(look(stored, at(TUE, 3, 59)), 1), SPROUT);
+  assert.strictEqual(frameOf(look(stored, at(TUE, 4)), 1), YOUNG);
   assert.strictEqual(frameOf(look(stored, at(THU, 3, 59)), 1), YOUNG);
-  assert.strictEqual(frameOf(look(stored, at(THU, 4), 1), 1), MATURE);
-  for (let d = FRI; d <= 25; d++) assert.strictEqual(frameOf(look(stored, at(d), 1), 1), MATURE, iso(d));
+  assert.strictEqual(frameOf(look(stored, at(THU, 4)), 1), DYING);           // Tuesday and Wednesday missed
+  assert.strictEqual(frameOf(look(stored, at(SAT, 3, 59)), 1), DYING);
+  assert.strictEqual(frameOf(look(stored, at(SAT, 4)), 1), DEAD);            // ... and Thursday and Friday
+});
+
+test("planted on a day without reviews: it doesn't grow that day, which still counts as reviewed for wilting", () => {
+  const stored = stored2({ placed: [{ id: 1, k: "rose_pink", x: 500, y: 600, t: iso(MON) }], next: 2 });
+  assert.strictEqual(frameOf(look(stored, at(TUE, 4)), 1), SPROUT);
+  assert.strictEqual(frameOf(look(stored, at(THU, 3, 59)), 1), SPROUT);
+  assert.strictEqual(frameOf(look(stored, at(THU, 4)), 1), DYING);           // Tuesday and Wednesday missed
+  assert.strictEqual(frameOf(look(stored, at(SAT, 4)), 1), DEAD);
+  // with reviews the next day, that day grows it
+  const next = stored2({ placed: [{ id: 1, k: "rose_pink", x: 500, y: 600, t: iso(MON) }], next: 2, days: days(TUE) });
+  assert.strictEqual(frameOf(look(next, at(WED, 3, 59)), 1), SPROUT);
+  assert.strictEqual(frameOf(look(next, at(WED, 4)), 1), YOUNG);
 });
 
 test("reviews Monday, none after: dying from Thursday 04:00, dead from Saturday 04:00", () => {
@@ -100,7 +122,7 @@ test("a dying plant recovers the moment a card is answered, and needs 2 new miss
 
 test("a dying young plant recovers to young, not mature", () => {
   const stored = stored2({ placed: [{ id: 1, k: "rose_pink", x: 500, y: 600, t: iso(MON) }], next: 2,
-    days: days(MON, TUE) });
+    days: days(TUE) });                                                      // nothing on the planting day
   assert.strictEqual(frameOf(look(stored, at(WED)), 1), YOUNG);
   assert.strictEqual(frameOf(look(stored, at(FRI)), 1), DYING);              // nothing on Wednesday or Thursday
   assert.strictEqual(frameOf(look(stored, at(FRI), 1), 1), YOUNG);
@@ -202,9 +224,10 @@ test("opening the garden after a week away gives the same result as opening it e
   }
   // and the history went through every stage
   assert.deepStrictEqual(seen[MON], [SPROUT, MATURE, SPROUT, 0, 0]);
-  assert.deepStrictEqual(seen[THU], [YOUNG, MATURE, SPROUT, 0, 0]);
-  assert.deepStrictEqual(seen[FRI], [YOUNG, MATURE, SPROUT, 0, 0]);                 // dying, then Friday's card
-  assert.deepStrictEqual(seen[SAT], [MATURE, MATURE, YOUNG, 0, 0]);
+  assert.deepStrictEqual(seen[TUE], [YOUNG, MATURE, SPROUT, 0, 0]);                 // Monday, its planting day, grew it
+  assert.deepStrictEqual(seen[THU], [MATURE, MATURE, YOUNG, 0, 0]);
+  assert.deepStrictEqual(seen[FRI], [MATURE, MATURE, YOUNG, 0, 0]);                 // dying, then Friday's card
+  assert.deepStrictEqual(seen[SAT], [MATURE, MATURE, MATURE, 0, 0]);
   assert.deepStrictEqual(seen[22], [DYING, DYING, DYING, 0, 0]);
   assert.deepStrictEqual(seen[24], [DEAD, DEAD, DEAD, 0, 0]);
   assert.deepStrictEqual(seen[29], [DEAD, DEAD, DEAD, 0, 0]);
@@ -227,6 +250,20 @@ test("a v: 1 save migrates: placed plants become mature with today as their last
   // Monday counts as reviewed: no reviews Tuesday or Wednesday → dying from Thursday 04:00
   assert.strictEqual(frameOf(look(stored, at(THU, 3, 59), undefined, NO_ART), 1), MATURE);
   assert.strictEqual(frameOf(look(stored, at(THU, 4), undefined, NO_ART), 1), DYING);
+});
+
+test("plants enrolled on a day with reviews stay mature, and wilt on the usual days", () => {
+  const v1 = { v: 1, coins: 0, earned: 0, seen: {}, inv: {}, placed: [{ id: 1, k: "rose_pink", x: 500, y: 600 }], next: 2 };
+  const stored = { [OLD_KEY]: JSON.stringify(v1) };
+  const g = look(stored, at(MON), 1);                        // enrolled, and Monday has reviews
+  assert.deepStrictEqual([saved(stored).placed[0].t, saved(stored).days], [iso(MON), days(MON)]);
+  assert.strictEqual(frameOf(g, 1), MATURE);
+  assert.strictEqual(frameOf(look(stored, at(TUE, 4), 1), 1), MATURE);
+  assert.strictEqual(frameOf(look(stored, at(WED, 4)), 1), MATURE);
+  assert.deepStrictEqual(plain(g.win.KanpekiGarden.life(saved(stored), saved(stored).placed[0])),
+    { g: MATURE, missed: 0, dead: false });
+  assert.strictEqual(frameOf(look(stored, at(FRI, 3, 59)), 1), MATURE);
+  assert.strictEqual(frameOf(look(stored, at(FRI, 4)), 1), DYING);           // Wednesday and Thursday missed
 });
 
 test("a v: 1 save with removed items is refunded and migrated", () => {
@@ -313,7 +350,7 @@ test("a v: 2 save under the old key (from a test build) is moved over too", () =
   const old = JSON.stringify({ v: 2, coins: 12, earned: 20, seen: {}, inv: {}, next: 2, days: days(MON),
     placed: [{ id: 1, k: "rose_pink", x: 500, y: 600, t: iso(MON) }] });
   const stored = { [OLD_KEY]: old };
-  assert.strictEqual(frameOf(look(stored, at(WED)), 1), SPROUT);                // no reviews on Tuesday
+  assert.strictEqual(frameOf(look(stored, at(WED)), 1), YOUNG);                 // Monday grew it, Tuesday didn't
   assert.strictEqual(stored[OLD_KEY], old);
   assert.deepStrictEqual([saved(stored).v, saved(stored).coins, saved(stored).placed[0].t], [2, 12, iso(MON)]);
 });

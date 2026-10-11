@@ -115,10 +115,10 @@ test("vacation switched on for part of a day: that day isn't a missed day", () =
 });
 
 test("reviews before switching vacation on, on the same day, still make it a growth day", () => {
-  const stored = stored2({ placed: [plant(1, "rose_pink", MON)], next: 2, days: days(MON) });
+  const stored = stored2({ placed: [plant(1, "rose_pink", MON)], next: 2 });          // nothing on the planting day
   assert.strictEqual(review(stored, at(TUE, 9), 1), true);
   vacation(stored, at(TUE, 10), true);
-  assert.deepStrictEqual(saved(stored).days, days(MON, TUE));
+  assert.deepStrictEqual(saved(stored).days, days(TUE));
   assert.strictEqual(saved(stored).vac, iso(TUE));
   assert.strictEqual(frameOf(look(stored, at(WED, 4)), 1), YOUNG);           // Tuesday grew it
   review(stored, at(WED, 9), 2);                                             // on vacation: no growth
@@ -126,9 +126,37 @@ test("reviews before switching vacation on, on the same day, still make it a gro
   // reviews after switching it off count too: Thursday off, then a card
   vacation(stored, at(THU, 9), false);
   review(stored, at(THU, 10), 3);
-  assert.deepStrictEqual(saved(stored).days, { [iso(MON)]: REVIEWED, [iso(TUE)]: REVIEWED | VACATION,
+  assert.deepStrictEqual(saved(stored).days, { [iso(TUE)]: REVIEWED | VACATION,
     [iso(WED)]: VACATION, [iso(THU)]: REVIEWED | VACATION });
   assert.strictEqual(frameOf(look(stored, at(FRI, 4)), 1), MATURE);
+});
+
+test("a planting day frozen by vacation doesn't grow the plant; one with reviews made while it was off does", () => {
+  // on since Sunday the 11th, the plant placed Monday, a card answered then, vacation switched off Monday evening
+  const frozen = stored2({ placed: [plant(1, "rose_pink", MON)], next: 2, vac: iso(11) });
+  assert.strictEqual(review(frozen, at(MON, 9), 1), false);
+  vacation(frozen, at(MON, 20), false);
+  assert.deepStrictEqual(saved(frozen).days, { [iso(11)]: VACATION, [iso(MON)]: VACATION });
+  assert.strictEqual(frameOf(look(frozen, at(TUE, 4)), 1), SPROUT);
+  assert.strictEqual(frameOf(look(frozen, at(THU, 3, 59)), 1), SPROUT);
+  assert.strictEqual(frameOf(look(frozen, at(THU, 4)), 1), DYING);           // Tuesday and Wednesday missed
+  // still on: the planting day stays frozen
+  const still = stored2({ placed: [plant(1, "rose_pink", MON)], next: 2, vac: iso(MON) });
+  assert.strictEqual(review(still, at(MON, 9), 1), false);
+  assert.strictEqual(frameOf(look(still, at(WED, 4)), 1), SPROUT);
+  // reviews made on the planting day while vacation was off: it grows, even with vacation on since
+  const before = stored2({ placed: [plant(1, "rose_pink", MON)], next: 2 });
+  assert.strictEqual(review(before, at(MON, 9), 1), true);
+  vacation(before, at(MON, 10), true);
+  assert.strictEqual(frameOf(look(before, at(TUE, 3, 59)), 1), SPROUT);
+  assert.strictEqual(frameOf(look(before, at(TUE, 4)), 1), YOUNG);
+  assert.strictEqual(frameOf(look(before, at(FRI, 4)), 1), YOUNG);           // and then frozen
+  // ... or after switching it off, the same day
+  const after = stored2({ placed: [plant(1, "rose_pink", MON)], next: 2, vac: iso(MON) });
+  vacation(after, at(MON, 9), false);
+  assert.strictEqual(review(after, at(MON, 10), 1), true);
+  assert.deepStrictEqual(saved(after).days, { [iso(MON)]: REVIEWED | VACATION });
+  assert.strictEqual(frameOf(look(after, at(TUE, 4)), 1), YOUNG);
 });
 
 test("a card answered during vacation pays nothing, and nothing again after vacation is switched off that day", () => {
@@ -157,7 +185,7 @@ test("a card answered during vacation pays nothing, and nothing again after vaca
 });
 
 test("on and off several times in one day", () => {
-  const stored = stored2({ placed: [plant(1, "rose_pink", MON)], next: 2, days: days(MON) });
+  const stored = stored2({ placed: [plant(1, "rose_pink", MON)], next: 2 });          // nothing on the planting day
   const pays = [];
   pays.push(review(stored, at(TUE, 9), 1));
   vacation(stored, at(TUE, 10), true);
@@ -171,7 +199,7 @@ test("on and off several times in one day", () => {
   vacation(stored, at(TUE, 14), true);                                       // and left on
   assert.deepStrictEqual(pays, [true, false, false, true, false, false, false]);
   const s = saved(stored);
-  assert.deepStrictEqual([s.coins, s.vac, s.days], [2, iso(TUE), { [iso(MON)]: REVIEWED, [iso(TUE)]: REVIEWED | VACATION }]);
+  assert.deepStrictEqual([s.coins, s.vac, s.days], [2, iso(TUE), { [iso(TUE)]: REVIEWED | VACATION }]);
   assert.strictEqual(frameOf(look(stored, at(WED, 4)), 1), YOUNG);           // Tuesday had reviews while off
   assert.strictEqual(frameOf(look(stored, at(25, 4)), 1), YOUNG);            // and it's been on since
 });
@@ -217,7 +245,7 @@ test("switched off with the clock put right after a clock a year ahead: today an
 });
 
 test("a week of vacation without opening AnkiDroid at all, then off: no plant changed", () => {
-  const stored = stored2({ next: 4, days: days(11, MON), placed: [
+  const stored = stored2({ next: 4, days: days(MON), placed: [            // nothing on the 11th, 1's and 3's planting day
     plant(1, "rose_pink", 11), plant(2, "palm", 9, MATURE), plant(3, "tulip_yellow", 11, YOUNG)] });
   const g0 = vacation(stored, at(MON, 21), true);                            // after Monday's cards
   assert.deepStrictEqual(frames(g0, [1, 2, 3]), [SPROUT, MATURE, YOUNG]);
@@ -229,7 +257,7 @@ test("a week of vacation without opening AnkiDroid at all, then off: no plant ch
   const s = saved(stored);
   assert.strictEqual(s.vac, undefined);
   for (let d = MON; d <= 21; d++) assert.strictEqual(s.days[iso(d)] & VACATION, VACATION, iso(d));
-  assert.strictEqual(Object.keys(s.days).length, 11);                        // Sunday, and Monday to the 21st
+  assert.strictEqual(Object.keys(s.days).length, 10);                        // Monday to the 21st
   assert.ok(!s.placed.some((p) => p.dead));
 });
 
@@ -262,12 +290,13 @@ test("with vacation in the mix, opening the garden after a week away gives the s
   }
   // and the plan does what it says
   assert.deepStrictEqual(seen[MON], [SPROUT, MATURE, SPROUT]);
-  assert.deepStrictEqual(seen[WED], [YOUNG, MATURE, SPROUT]);                  // Tuesday's card came before vacation
-  assert.deepStrictEqual(seen[FRI], [YOUNG, MATURE, SPROUT]);                  // Thursday's was on vacation
-  assert.deepStrictEqual(seen[21], [MATURE, MATURE, YOUNG]);                   // the 19th missed, the 20th grew them
+  assert.deepStrictEqual(seen[TUE], [YOUNG, MATURE, SPROUT]);                  // Monday, its planting day, grew it
+  assert.deepStrictEqual(seen[WED], [MATURE, MATURE, YOUNG]);                  // Tuesday's card came before vacation
+  assert.deepStrictEqual(seen[FRI], [MATURE, MATURE, YOUNG]);                  // Thursday's was on vacation
+  assert.deepStrictEqual(seen[21], [MATURE, MATURE, MATURE]);                  // the 19th missed, the 20th grew them
   assert.deepStrictEqual(seen[23], [DYING, DYING, DYING]);                     // the 21st and 22nd missed
   assert.deepStrictEqual(seen[29], [DYING, DYING, DYING]);                     // the 23rd too, then vacation
-  assert.deepStrictEqual(seen[30], [MATURE, MATURE, YOUNG]);                   // the card after it brought them back
+  assert.deepStrictEqual(seen[30], [MATURE, MATURE, MATURE]);                  // the card after it brought them back
   assert.deepStrictEqual(seen[31], [MATURE, MATURE, MATURE]);
 });
 
