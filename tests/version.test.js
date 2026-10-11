@@ -78,6 +78,39 @@ test("release.py with a bad version, or none, exits 2 before building anything",
   }
 });
 
+test("the zip needs the snippet, INSTALL.txt, LICENSE and ART.md: release.py stops before building without one",
+  { skip: noPython }, () => {
+  const out = py(`
+import io, json, os, tempfile, contextlib, release
+ran = []
+release.run = lambda step, cmd: ran.append(step)
+results = []
+for gone in [None] + release.EXTRAS:
+    with tempfile.TemporaryDirectory() as d:
+        for f in release.EXTRAS:
+            if f != gone:
+                os.makedirs(os.path.join(d, os.path.dirname(f)), exist_ok=True)
+                open(os.path.join(d, f), "w").close()
+        release.REPO, release.DIST = d, os.path.join(d, "dist")
+        err = io.StringIO()
+        try:
+            with contextlib.redirect_stderr(err), contextlib.redirect_stdout(io.StringIO()):
+                code = release.main(["1.2.0"])
+        except Exception as e:           # with everything there it gets past the check, to a stubbed build
+            code = type(e).__name__
+        results.append([gone, code, err.getvalue(), len(ran)])
+        ran.clear()
+print(json.dumps(results))`);
+  assert.deepStrictEqual(out.map((r) => r[0]),
+    [null, "release/template-snippet.html", "release/INSTALL.txt", "LICENSE", "ART.md"]);
+  assert.notStrictEqual(out[0][3], 0);                               // all there: the build ran
+  for (const [gone, code, err, ran] of out.slice(1)) {
+    assert.strictEqual(code, 1, gone);
+    assert.strictEqual(err, "release failed: missing: " + gone + "\n");
+    assert.strictEqual(ran, 0);                                       // nothing built
+  }
+});
+
 test("stamp() replaces the one dev line, and refuses a bundle without exactly one, or a bad version", { skip: noPython }, () => {
   const out = py(`
 import json, release

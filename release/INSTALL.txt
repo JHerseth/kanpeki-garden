@@ -33,4 +33,4 @@ Good to know
 - To update, replace the media files with the new zip's; the garden's save is kept.
 - The version is shown at the bottom of the garden's settings.
 
-Licence: MIT, see LICENSE.
+Licence: MIT, see LICENSE. ART.md says how the art was made.

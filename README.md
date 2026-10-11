@@ -95,7 +95,7 @@ The tests of `scripts/release.py` (in `version.test.js`) need `python3`, and the
 python3 scripts/release.py 1.2.0       # MAJOR.MINOR.PATCH, an optional -suffix (1.3.0-rc.1), no leading v
 ```
 
-Runs the full build, stamps the version into `media/_garden.js` (`KG_VERSION = "1.2.0"`, shown as 「v1.2.0」 in the settings), runs the tests, and writes `dist/kanpeki-garden-1.2.0.zip`: the media files, `template-snippet.html`, `INSTALL.txt`, and the repo's `LICENSE` and `ART.md` (each when present). It stops with a non-zero exit at the first step that fails. Attach the zip to a GitHub release (`gh release create`).
+Runs the full build, stamps the version into `media/_garden.js` (`KG_VERSION = "1.2.0"`, shown as 「v1.2.0」 in the settings), runs the tests, and writes `dist/kanpeki-garden-1.2.0.zip`: the media files, `template-snippet.html`, `INSTALL.txt`, `LICENSE` and `ART.md`. It stops with a non-zero exit at the first step that fails. Attach the zip to a GitHub release (`gh release create`).
 
 ## Licence
 

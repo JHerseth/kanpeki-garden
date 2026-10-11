@@ -8,10 +8,10 @@
     2. the version stamped into media/_garden.js (KG_VERSION, "dev" in a plain build; see stamp), and a syntax check;
     3. the tests;
     4. the zip, flat: the media the bundle loads (_garden.js, the atlases KG_ATLAS names, _garden_bg.webp),
-       release/template-snippet.html and release/INSTALL.txt, and LICENSE and ART.md when the repo has them.
+       release/template-snippet.html and release/INSTALL.txt, and the repo's LICENSE and ART.md.
 
-Any failure stops it with a non-zero exit (2 for a bad version, before anything is built) and leaves no zip,
-not even an earlier run's for the same version.
+Any failure stops it with a non-zero exit (2 for a bad version, and 1 for a missing EXTRAS file, both before
+anything is built) and leaves no zip, not even an earlier run's for the same version.
 Needs what the build needs (Python 3 with Pillow and NumPy, the LFS art) and node for the tests.
 """
 import glob
@@ -28,9 +28,8 @@ DIST = os.path.join(REPO, "dist")
 VERSION = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?")
 # the plain build's line in _garden.js (build_assets.VERSION_DEV), the one stamp() replaces
 DEV = 'var KG_VERSION = "dev";'
-# from release/ and the repo root: always, and only when there (the licence files)
-EXTRAS = ["release/template-snippet.html", "release/INSTALL.txt"]
-OPTIONAL = ["LICENSE", "ART.md"]
+# the zip's other files, from release/ and the repo root (the licence and the art's note go with the art)
+EXTRAS = ["release/template-snippet.html", "release/INSTALL.txt", "LICENSE", "ART.md"]
 
 
 class Failed(Exception):
@@ -91,7 +90,7 @@ def release(version):
     run("the syntax check", ["node", "--check", path])
     run("the tests", ["node", "--test"] + sorted(glob.glob(os.path.join("tests", "*.test.js"))))
 
-    files = media_files() + EXTRAS + [f for f in OPTIONAL if os.path.isfile(os.path.join(REPO, f))]
+    files = media_files() + EXTRAS
     os.makedirs(DIST, exist_ok=True)
     part = out + ".part"            # renamed once whole, so a failure never leaves a zip that looks done
     try:
