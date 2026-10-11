@@ -1,0 +1,24 @@
+# Fills the LFS art cache on main. A cache made by a tag's run can only be restored by runs of that
+# same tag, but one made on main can be restored by every tag; and GitHub drops a cache that goes
+# unused for 7 days, so the weekly run keeps it (a restore from the cache, not a download from LFS).
+name: LFS cache
+
+on:
+  push:
+    branches: [main]
+    paths: ["art/stages/**", "art/decor/**", ".gitattributes"]
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cache:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          lfs: false
+      - uses: ./.github/actions/lfs-art

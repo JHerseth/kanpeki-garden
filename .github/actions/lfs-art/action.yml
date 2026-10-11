@@ -1,0 +1,29 @@
+name: LFS art
+description: >
+  Checks out the art in Git LFS, restoring its objects from the Actions cache. The cache key is the
+  list of LFS files and their hashes, so the art is only downloaded from LFS when it changed.
+  Run it after actions/checkout with lfs: false.
+runs:
+  using: composite
+  steps:
+    - name: Key the cache on the LFS file list
+      id: key
+      shell: bash
+      # oid and path only: the middle column says whether a file is checked out, not what it is
+      run: echo "key=lfs-art-$(git lfs ls-files --long | cut -d' ' -f1,3- | sha256sum | cut -c1-64)" >> "$GITHUB_OUTPUT"
+    - name: Restore the LFS objects
+      id: cache
+      uses: actions/cache@v6.1.0
+      with:
+        path: .git/lfs/objects
+        key: ${{ steps.key.outputs.key }}
+    - name: Set up Git LFS
+      shell: bash
+      run: git lfs install --local
+    - name: Download the art (cache miss)
+      if: steps.cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: git lfs pull
+    - name: Check out the art
+      shell: bash
+      run: git lfs checkout

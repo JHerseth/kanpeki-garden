@@ -1,0 +1,33 @@
+# The tests and the --js build. They only read garden.js and catalog.js, so no LFS art is checked out.
+name: Test
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          lfs: false
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install Pillow and NumPy
+        run: python3 -m pip install -r requirements.txt
+      - name: Test
+        run: node --test tests/*.test.js
+      - name: Build _garden.js
+        run: mkdir -p media && python3 scripts/build_assets.py --js
+      - name: Check the bundle's syntax
+        run: node --check media/_garden.js

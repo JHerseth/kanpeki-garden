@@ -89,13 +89,26 @@ node --test tests/*.test.js
 
 The tests of `scripts/release.py` (in `version.test.js`) need `python3`, and the one that builds `_garden.js` also Pillow and NumPy; each is skipped without them.
 
+GitHub Actions runs the tests and the `--js` build on every push and pull request, without the LFS art.
+
 ### Release zip
 
 ```sh
 python3 scripts/release.py 1.2.0       # MAJOR.MINOR.PATCH, an optional -suffix (1.3.0-rc.1), no leading v
 ```
 
-Runs the full build, stamps the version into `media/_garden.js` (`KG_VERSION = "1.2.0"`, shown as 「v1.2.0」 in the settings), runs the tests, and writes `dist/kanpeki-garden-1.2.0.zip`: the media files, `template-snippet.html`, `INSTALL.txt`, `LICENSE` and `ART.md`. It stops with a non-zero exit at the first step that fails. Attach the zip to a GitHub release (`gh release create`).
+Runs the full build, stamps the version into `media/_garden.js` (`KG_VERSION = "1.2.0"`, shown as 「v1.2.0」 in the settings), runs the tests, and writes `dist/kanpeki-garden-1.2.0.zip`: the media files, `template-snippet.html`, `INSTALL.txt`, `LICENSE` and `ART.md`. It stops with a non-zero exit at the first step that fails. Pushing a version tag builds and publishes the release on GitHub: see [Releasing](#releasing).
+
+### Releasing
+
+Tag a commit on `main` with its version and push the tag:
+
+```sh
+git tag v1.2.0
+git push origin v1.2.0
+```
+
+The release workflow builds everything from the art (`scripts/release.py 1.2.0`), checks that the built `catalog.js` matches the committed one, and publishes a GitHub release with `kanpeki-garden-1.2.0.zip` and notes from the merged pull requests. There's nothing to bump by hand: the version comes from the tag. A tag with a suffix, like `v1.3.0-rc.1`, makes a pre-release. CI installs the Python packages pinned in `requirements.txt`.
 
 ## Licence
 

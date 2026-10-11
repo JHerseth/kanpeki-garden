@@ -1,0 +1,63 @@
+# A version tag (v1.2.0, or v1.3.0-rc.1 for a pre-release) builds the release zip from the art
+# and publishes it as a GitHub release.
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check the tag
+        id: version
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [[ ! "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$ ]]; then
+            echo "::error::$TAG isn't a version tag: vMAJOR.MINOR.PATCH, optionally with a suffix (v1.3.0-rc.1)"
+            exit 1
+          fi
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          if [[ "$TAG" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/checkout@v7.0.1
+        with:
+          lfs: false
+      - uses: ./.github/actions/lfs-art
+      - uses: actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - name: Install Pillow and NumPy
+        run: python3 -m pip install -r requirements.txt
+      - name: Build the zip
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: python3 scripts/release.py "$VERSION"
+      - name: Check the build matches the repo
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            git status --short
+            git diff --stat
+            echo "::error::The build changed tracked files: rebuild with scripts/build_assets.py and commit them before tagging"
+            exit 1
+          fi
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.version }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          flags=(--generate-notes --verify-tag)
+          if [[ "$PRERELEASE" == true ]]; then flags+=(--prerelease); fi
+          gh release create "$TAG" "dist/kanpeki-garden-$VERSION.zip" "${flags[@]}"
